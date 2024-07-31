@@ -1,0 +1,19 @@
+extern/filecoin-ffi/rust/target
+**/*.a
+**/*.pc
+/**/*/.DS_STORE
+.DS_STORE
+build/.*
+/vendor
+
+.idea
+.vscode
+/venv
+scratchpad
+
+# to ensure tests build: itests/ go test -c .
+/itests/itests.test
+
+# The following files are checked into git and result
+# in dirty git state if removed from the docker context
+!extern/filecoin-ffi/rust/filecoin.pc
