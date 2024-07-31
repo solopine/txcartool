@@ -1,35 +1,6 @@
 SHELL=/usr/bin/env bash
 
-all: build
-.PHONY: all
-
-unexport GOFLAGS
-
 GOCC?=go
-
-GOVERSION:=$(shell $(GOCC) version | tr ' ' '\n' | grep go1 | sed 's/^go//' | awk -F. '{printf "%d%03d%03d", $$1, $$2, $$3}')
-GOVERSIONMIN:=$(shell cat GO_VERSION_MIN | awk -F. '{printf "%d%03d%03d", $$1, $$2, $$3}')
-
-ifeq ($(shell expr $(GOVERSION) \< $(GOVERSIONMIN)), 1)
-$(warning Your Golang version is go$(shell expr $(GOVERSION) / 1000000).$(shell expr $(GOVERSION) % 1000000 / 1000).$(shell expr $(GOVERSION) % 1000))
-$(error Update Golang to version to at least $(shell cat GO_VERSION_MIN))
-endif
-
-# git modules that need to be loaded
-MODULES:=
-
-CLEAN:=
-BINS:=
-
-ldflags=-X=github.com/filecoin-project/lotus/build.CurrentCommit=+git.$(subst -,.,$(shell git describe --always --match=NeVeRmAtCh --dirty 2>/dev/null || git rev-parse --short HEAD 2>/dev/null))
-ifneq ($(strip $(LDFLAGS)),)
-	ldflags+=-extldflags=$(LDFLAGS)
-endif
-
-GOFLAGS+=-ldflags="$(ldflags)"
-
-
-## FFI
 
 FFI_PATH:=extern/filecoin-ffi/
 FFI_DEPS:=.install-filcrypto
@@ -66,42 +37,37 @@ CLEAN+=build/.update-modules
 deps: $(BUILD_DEPS)
 .PHONY: deps
 
-build-devnets: build txcar
-.PHONY: build-devnets
-
-debug: GOFLAGS+=-tags=debug
-debug: build-devnets
-
-2k: GOFLAGS+=-tags=2k
-2k: build-devnets
-
-calibnet: GOFLAGS+=-tags=calibnet
-calibnet: build-devnets
-
-butterflynet: GOFLAGS+=-tags=butterflynet
-butterflynet: build-devnets
-
-interopnet: GOFLAGS+=-tags=interopnet
-interopnet: build-devnets
+## ldflags -s -w strips binary
 
 txcar: $(BUILD_DEPS)
 	rm -f txcar
-	$(GOCC) build $(GOFLAGS) -o txcar ./main
-	# $(GOCC) build $(GOFLAGS) -gcflags "all=-N -l" -o lotus ./cmd/lotus
+	GOAMD64=v3 $(GOCC) build $(GOFLAGS) -gcflags "all=-N -l" -o txcar -ldflags " \
+	-X github.com/filecoin-project/curio/build.IsOpencl=$(FFI_USE_OPENCL) \
+	-X github.com/filecoin-project/curio/build.CurrentCommit=+git_`git log -1 --format=%h_%cI`" \
+	./main
 .PHONY: txcar
 BINS+=txcar
 
 
+
+debug: GOFLAGS+=-tags=debug
+debug: build
+
+
+
+all: build
+.PHONY: all
+
 build: txcar
 	@[[ $$(type -P "txcar") ]] && echo "Caution: you have \
-an existing lotus binary in your PATH. This may cause problems if you don't run 'sudo make install'" || true
+an existing txcar binary in your PATH. This may cause problems if you don't run 'sudo make install'" || true
 
 .PHONY: build
 
-# MISC
+
+# TODO move systemd?
 
 buildall: $(BINS)
-
 
 clean:
 	rm -rf $(CLEAN) $(BINS)
@@ -114,6 +80,7 @@ dist-clean:
 .PHONY: dist-clean
 
 
-print-%:
-	@echo $*=$($*)
 
+
+fix-imports:
+	$(GOCC) run ./scripts/fiximports
