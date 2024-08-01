@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/binary"
 	"io"
 )
 
@@ -28,16 +27,24 @@ func NewUnlimitedZoReader() io.Reader {
 	}
 }
 
+//func (r *UnlimitedZoReader) Read(out []byte) (int, error) {
+//	for i := range out {
+//		out[i] = r.PosBytes[r.ByteIndex]
+//		if r.ByteIndex < 7 {
+//			r.ByteIndex = r.ByteIndex + 1
+//		} else {
+//			r.ByteIndex = 0
+//			r.Pos = r.Pos + 1
+//			binary.LittleEndian.PutUint64(r.PosBytes, r.Pos)
+//		}
+//	}
+//	return len(out), nil
+//}
+
 func (r *UnlimitedZoReader) Read(out []byte) (int, error) {
 	for i := range out {
-		out[i] = r.PosBytes[r.ByteIndex]
-		if r.ByteIndex < 7 {
-			r.ByteIndex = r.ByteIndex + 1
-		} else {
-			r.ByteIndex = 0
-			r.Pos = r.Pos + 1
-			binary.LittleEndian.PutUint64(r.PosBytes, r.Pos)
-		}
+		out[i] = byte(r.Pos % 2)
+		r.Pos = r.Pos + 1
 	}
 	return len(out), nil
 }
