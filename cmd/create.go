@@ -28,7 +28,11 @@ func CreateCar(c *cli.Context) error {
 	var err error
 
 	deleteFile := true
-	destDir := os.TempDir()
+	destDir := "/cartmp"
+	_, err = os.Stat(destDir)
+	if err != nil {
+		destDir = os.TempDir()
+	}
 
 	if c.IsSet("dest") {
 		deleteFile = false
