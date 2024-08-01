@@ -15,16 +15,12 @@ func NewZoReader(size uint64) io.Reader {
 
 // TODO: extract this to someplace where it can be shared with lotus
 type UnlimitedZoReader struct {
-	Pos       uint64
-	PosBytes  []byte
-	ByteIndex uint
+	Pos uint64
 }
 
 func NewUnlimitedZoReader() io.Reader {
 	return &UnlimitedZoReader{
-		Pos:       0,
-		PosBytes:  make([]byte, 8),
-		ByteIndex: 0,
+		Pos: 0,
 	}
 }
 
@@ -74,11 +70,3 @@ func (r *UnlimitedZoReader) Read(out []byte) (int, error) {
 
 	return len(out), nil
 }
-
-//func (r *UnlimitedZoReader) Read(out []byte) (int, error) {
-//	for i := range out {
-//		out[i] = byte(r.Pos % 2)
-//		r.Pos = r.Pos + 1
-//	}
-//	return len(out), nil
-//}
