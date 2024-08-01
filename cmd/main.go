@@ -32,6 +32,24 @@ func main1() int {
 					},
 				},
 			},
+			{
+				Name:    "batch",
+				Usage:   "batch Create car files",
+				Aliases: []string{"b"},
+				Action:  CreateCar,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "output",
+						Aliases: []string{"o"},
+						Usage:   "The output file",
+					},
+					&cli.UintFlag{
+						Name:    "count",
+						Aliases: []string{"c"},
+						Usage:   "count of car",
+					},
+				},
+			},
 		},
 	}
 

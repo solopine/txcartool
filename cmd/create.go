@@ -27,10 +27,13 @@ import (
 func CreateCar(c *cli.Context) error {
 	var err error
 
-	if !c.IsSet("dest") {
-		return fmt.Errorf("a file destination must be specified")
+	deleteFile := true
+	destDir := os.TempDir()
+
+	if c.IsSet("dest") {
+		deleteFile = false
+		destDir = c.String("dest")
 	}
-	destDir := c.String("dest")
 
 	var key uuid.UUID
 	if !c.IsSet("key") {
@@ -87,8 +90,18 @@ func CreateCar(c *cli.Context) error {
 	}
 	fmt.Printf("%s\t%s\t%d\t%d\n", key.String(), pieceCid.String(), pieceSize, carSize)
 
-	newDeskFile := path.Join(destDir, pieceCid.String()+".car")
-	os.Rename(deskFile, newDeskFile)
+	if deleteFile {
+		err = os.Remove(deskFile)
+		if err != nil {
+			return err
+		}
+	} else {
+		newDeskFile := path.Join(destDir, pieceCid.String()+".car")
+		err = os.Rename(deskFile, newDeskFile)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
