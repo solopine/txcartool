@@ -13,7 +13,6 @@ func NewZoReader(size uint64) io.Reader {
 	return &ZoReader{(io.LimitReader(NewUnlimitedZoReader(), int64(size))).(*io.LimitedReader)}
 }
 
-// TODO: extract this to someplace where it can be shared with lotus
 type UnlimitedZoReader struct {
 	Pos uint64
 }

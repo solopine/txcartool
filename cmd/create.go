@@ -69,8 +69,7 @@ func CreateCar(c *cli.Context) error {
 	}
 	proxyRoot := cid.NewCidV1(uint64(multicodec.DagPb), hash)
 
-	options := []car.Option{}
-	options = []car.Option{blockstore.WriteAsCarV1(true)}
+	options := []car.Option{blockstore.WriteAsCarV1(true)}
 
 	cdest, err := blockstore.OpenReadWrite(deskFile, []cid.Cid{proxyRoot}, options...)
 	if err != nil {
