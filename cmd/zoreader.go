@@ -35,7 +35,7 @@ func (r *UnlimitedZoReader) Read(out []byte) (int, error) {
 	bufLeft := uint64(len(out))
 	bufIndex := uint64(0)
 	tempBytes := make([]byte, 8)
-	fmt.Printf("bufLeft:%d\tbufIndex:%d\tr.Pos:%d\tn:%d\t", bufLeft, bufIndex, r.Pos, n)
+	fmt.Printf("bufLeft:%d\tbufIndex:%d\tr.Pos:%d\tn:%d\t\n", bufLeft, bufIndex, r.Pos, n)
 
 	// prePad
 	if prePad > 0 {
@@ -51,11 +51,13 @@ func (r *UnlimitedZoReader) Read(out []byte) (int, error) {
 		bufLeft -= prePad
 		bufIndex += prePad
 		n += 1
-		fmt.Printf("1  bufLeft:%d\tbufIndex:%d\tr.Pos:%d\tn:%d\t", bufLeft, bufIndex, r.Pos, n)
+		fmt.Printf("1  bufLeft:%d\tbufIndex:%d\tr.Pos:%d\tn:%d\t\n", bufLeft, bufIndex, r.Pos, n)
 	}
 
-	for i := uint64(0); i < bufLeft/8; i++ {
-		fmt.Printf("2  bufLeft:%d\tbufIndex:%d\tr.Pos:%d\tn:%d\t", bufLeft, bufIndex, r.Pos, n)
+	// regular
+	count := bufLeft / 8
+	for i := uint64(0); i < count; i++ {
+		fmt.Printf("2  bufLeft:%d\tbufIndex:%d\tr.Pos:%d\tn:%d\t\n", bufLeft, bufIndex, r.Pos, n)
 		binary.LittleEndian.PutUint64(out[bufIndex:], n)
 		r.Pos += 8
 		bufLeft -= 8
@@ -65,7 +67,7 @@ func (r *UnlimitedZoReader) Read(out []byte) (int, error) {
 
 	// suffix
 	if bufLeft > 0 {
-		fmt.Printf("3  bufLeft:%d\tbufIndex:%d\tr.Pos:%d\tn:%d\t", bufLeft, bufIndex, r.Pos, n)
+		fmt.Printf("3  bufLeft:%d\tbufIndex:%d\tr.Pos:%d\tn:%d\t\n", bufLeft, bufIndex, r.Pos, n)
 		binary.LittleEndian.PutUint64(tempBytes, n)
 		copy(out[bufIndex:], tempBytes[0:bufLeft])
 		r.Pos += bufLeft
