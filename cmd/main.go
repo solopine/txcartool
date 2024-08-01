@@ -36,7 +36,7 @@ func main1() int {
 				Name:    "batch",
 				Usage:   "batch Create car files",
 				Aliases: []string{"b"},
-				Action:  CreateCar,
+				Action:  BatchCreateCar,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:    "output",

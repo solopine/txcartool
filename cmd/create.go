@@ -110,6 +110,86 @@ func CreateCar(c *cli.Context) error {
 	return nil
 }
 
+// CreateCar creates a car
+func BatchCreateCar(c *cli.Context) error {
+	var err error
+
+	tmpDir := "/cartmp"
+	_, err = os.Stat(tmpDir)
+	if err != nil {
+		tmpDir = os.TempDir()
+	}
+
+	if !c.IsSet("output") {
+		return fmt.Errorf("output is missing")
+	}
+	//outFile := c.String("output")
+
+	if !c.IsSet("count") {
+		return fmt.Errorf("count is missing")
+	}
+	count := int(c.Uint("count"))
+
+	err = os.Setenv("RUST_LOG", "Error")
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < count; i++ {
+		key := uuid.New()
+
+		deskFile := path.Join(tmpDir, key.String()+".tmp.car")
+
+		// make a cid with the right length that we eventually will patch with the root.
+		hasher, err := multihash.GetHasher(multihash.SHA2_256)
+		if err != nil {
+			return err
+		}
+		digest := hasher.Sum([]byte{})
+		hash, err := multihash.Encode(digest, multihash.SHA2_256)
+		if err != nil {
+			return err
+		}
+		proxyRoot := cid.NewCidV1(uint64(multicodec.DagPb), hash)
+
+		options := []car.Option{}
+		options = []car.Option{blockstore.WriteAsCarV1(true)}
+
+		cdest, err := blockstore.OpenReadWrite(deskFile, []cid.Cid{proxyRoot}, options...)
+		if err != nil {
+			return err
+		}
+
+		// Write the unixfs blocks into the store.
+		root, err := writeFilesWithMem(c.Context, false, cdest, key)
+		if err != nil {
+			return err
+		}
+
+		if err := cdest.Finalize(); err != nil {
+			return err
+		}
+
+		// re-open/finalize with the final root.
+		err = car.ReplaceRootsInFile(deskFile, []cid.Cid{root})
+		if err != nil {
+			return err
+		}
+
+		pieceCid, pieceSize, carSize, err := genCommp(deskFile)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s\t%s\t%d\t%d\n", key.String(), pieceCid.String(), pieceSize, carSize)
+
+		err = os.Remove(deskFile)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func writeFilesWithMem(ctx context.Context, noWrap bool, bs *blockstore.ReadWrite, key uuid.UUID) (cid.Cid, error) {
 
 	ls := cidlink.DefaultLinkSystem()
@@ -211,17 +291,6 @@ func buildUnixFS(r io.Reader, ls *ipld.LinkSystem) (ipld.Link, uint64, error) {
 		return nil, 0, err
 	}
 	return outLnk, sz, nil
-}
-
-type memReader struct {
-	data string
-}
-
-func newMemReader(data string) io.Reader {
-	mr := memReader{
-		data,
-	}
-	return strings.NewReader(mr.data)
 }
 
 func createReader1(key uuid.UUID) (io.Reader, string, error) {
