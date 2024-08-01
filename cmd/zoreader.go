@@ -34,6 +34,7 @@ func (r *UnlimitedZoReader) Read(out []byte) (int, error) {
 	bufLeft := uint64(len(out))
 	bufIndex := uint64(0)
 	tempBytes := make([]byte, 8)
+	println("bufLeft:%d\tbufIndex:%d\tr.Pos:%d\tn:%d\t", bufLeft, bufIndex, r.Pos, n)
 
 	// prePad
 	if prePad > 0 {
@@ -49,9 +50,11 @@ func (r *UnlimitedZoReader) Read(out []byte) (int, error) {
 		bufLeft -= prePad
 		bufIndex += prePad
 		n += 1
+		println("bufLeft:%d\tbufIndex:%d\tr.Pos:%d\tn:%d\t", bufLeft, bufIndex, r.Pos, n)
 	}
 
 	for i := uint64(0); i < bufLeft/8; i++ {
+		println("bufLeft:%d\tbufIndex:%d\tr.Pos:%d\tn:%d\t", bufLeft, bufIndex, r.Pos, n)
 		binary.LittleEndian.PutUint64(out[bufIndex:], n)
 		r.Pos += 8
 		bufLeft -= 8
@@ -61,6 +64,7 @@ func (r *UnlimitedZoReader) Read(out []byte) (int, error) {
 
 	// suffix
 	if bufLeft > 0 {
+		println("bufLeft:%d\tbufIndex:%d\tr.Pos:%d\tn:%d\t", bufLeft, bufIndex, r.Pos, n)
 		binary.LittleEndian.PutUint64(tempBytes, n)
 		copy(out[bufIndex:], tempBytes[0:bufLeft])
 		r.Pos += bufLeft
