@@ -34,7 +34,7 @@ func genCommp(carPath string) (cid.Cid, int64, int64, error) {
 	}
 
 	pieceCid = commp.PieceCID
-	pieceSize := int64(commp.PieceSize.Unpadded())
+	pieceSize := int64(commp.PieceSize)
 	carSize := stat.Size()
 
 	return pieceCid, pieceSize, carSize, err

@@ -4,14 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/google/uuid"
 	"io"
 	"os"
 	"path"
 	"strings"
 
-	ffi "github.com/filecoin-project/filecoin-ffi"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-unixfsnode/data/builder"
@@ -89,13 +87,8 @@ func CreateCar(c *cli.Context) error {
 	}
 	fmt.Printf("%s\t%s\t%d\t%d\n", key.String(), pieceCid.String(), pieceSize, carSize)
 
-	newDeskFile := path.Join(destDir, root.String()+".car")
+	newDeskFile := path.Join(destDir, pieceCid.String()+".car")
 	os.Rename(deskFile, newDeskFile)
-
-	fmt.Println("Piece size: ", types.NewInt(uint64(pieceSize)))
-	ffi.CreateZeroSignature()
-
-	fmt.Printf("%s\t%s\n", key.String(), root.String())
 
 	return nil
 }
