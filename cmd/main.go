@@ -38,11 +38,6 @@ func main1() int {
 				Aliases: []string{"b"},
 				Action:  BatchCreateCar,
 				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:    "output",
-						Aliases: []string{"o"},
-						Usage:   "The output file",
-					},
 					&cli.UintFlag{
 						Name:    "count",
 						Aliases: []string{"c"},

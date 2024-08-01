@@ -27,6 +27,11 @@ import (
 func CreateCar(c *cli.Context) error {
 	var err error
 
+	err = os.Setenv("RUST_LOG", "Error")
+	if err != nil {
+		return err
+	}
+
 	deleteFile := true
 	destDir := "/cartmp"
 	_, err = os.Stat(destDir)
@@ -119,11 +124,6 @@ func BatchCreateCar(c *cli.Context) error {
 	if err != nil {
 		tmpDir = os.TempDir()
 	}
-
-	if !c.IsSet("output") {
-		return fmt.Errorf("output is missing")
-	}
-	//outFile := c.String("output")
 
 	if !c.IsSet("count") {
 		return fmt.Errorf("count is missing")
