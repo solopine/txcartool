@@ -131,6 +131,9 @@ func Reseal(cctx *cli.Context) error {
 			sid := sectorSealInfo.sid
 			log.Infof("try redo sector: %d. sectorsThrottle: %d", sid, len(sectorsThrottle))
 
+			si, err := minerApi.SectorsStatus(context.TODO(), sid, true)
+			log.Infof("try redo sector2: %d. si: %+v", sid, si)
+
 			//AP
 			apResult, err := func() (APResult, error) {
 				defer func() {
@@ -287,7 +290,7 @@ func precommit1(sectorSealInfo SectorSealInfo, apResult APResult, sid abi.Sector
 		ProofType: spt,
 	}
 
-	si, err := minerApi.SectorsStatus(context.TODO(), sid, false)
+	si, err := minerApi.SectorsStatus(context.TODO(), sid, true)
 	if err != nil {
 		log.Errorf("SectorsStatus error for %d, err: %s", sid, err)
 		return nil, nil, err
