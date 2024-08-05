@@ -79,9 +79,6 @@ func Reseal(cctx *cli.Context) error {
 		}
 	}
 
-	storageIdStr := cctx.String("storage-id")
-	storageId := storiface.ID(storageIdStr)
-
 	sbfs := &basicfs.Provider{
 		Root: sdir,
 	}
@@ -227,7 +224,7 @@ func Reseal(cctx *cli.Context) error {
 
 				log.Warnf("start to process FIN sector: %d. finThrottle: %d", sid, len(finThrottle))
 
-				err := finalize(p2result.sid, p2result.actor, p2result.spt, p2result.sb, p2result.sdir, p2result.storageDir, storageId, minerApi)
+				err := finalize(p2result.sid, p2result.actor, p2result.spt, p2result.sb, p2result.sdir, p2result.storageDir)
 				if err != nil {
 					log.Errorf("fin seal error for %d, err: %s", p2result.sid, err)
 					return
@@ -360,9 +357,7 @@ func finalize(sid abi.SectorNumber, actor abi.ActorID,
 
 	spt abi.RegisteredSealProof, sb *ffiwrapper.Sealer,
 	sdir string,
-	storageDir string,
-	storageId storiface.ID,
-	minerApi api.StorageMiner) error {
+	storageDir string) error {
 
 	sidRef := storiface.SectorRef{
 		ID: abi.SectorID{
@@ -393,25 +388,6 @@ func finalize(sid abi.SectorNumber, actor abi.ActorID,
 			return err
 		}
 		log.Infow("move sector successful", "sid", sid, "pt", pt)
-
-		//
-		if storageId != storiface.ID("") {
-			log.Infow("need redeclare storage", "sidRef", sidRef.ID)
-			ssis, err := minerApi.StorageFindSector(context.TODO(), sidRef.ID, pt, 0, false)
-			if err != nil {
-				return err
-			}
-			for _, ssi := range ssis {
-				log.Infow("StorageDropSector", "ssi", ssi, "sidRef", sidRef.ID)
-				if err := minerApi.StorageDropSector(context.TODO(), ssi.ID, sidRef.ID, pt); err != nil {
-					return err
-				}
-			}
-			log.Infow("StorageDeclareSector", "ssi", storageId, "sidRef", sidRef.ID)
-			if err := minerApi.StorageDeclareSector(context.TODO(), storageId, sidRef.ID, pt, true); err != nil {
-				return err
-			}
-		}
 	}
 
 	unsealedFilePath := filepath.Join(sdir, storiface.FTUnsealed.String(), storiface.SectorName(sidRef.ID))

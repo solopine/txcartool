@@ -51,10 +51,23 @@ func main1() int {
 				Usage:  "reseal",
 				Action: Reseal,
 				Flags: []cli.Flag{
-					&cli.UintFlag{
-						Name:    "count",
-						Aliases: []string{"c"},
-						Usage:   "count of car",
+					&cli.StringFlag{
+						Name:  "seal-dir",
+						Usage: "redo sector seal directory",
+						Value: "",
+					}, &cli.StringFlag{
+						Name:  "storage-dir",
+						Usage: "the storage directory where the redo sector is stored",
+						Value: "",
+					}, &cli.StringFlag{
+						Name:  "sid-file",
+						Usage: "sid-file",
+					}, &cli.StringFlag{
+						Name:  "p1max",
+						Usage: "p1max",
+					}, &cli.StringFlag{
+						Name:  "smax",
+						Usage: "smax",
 					},
 				},
 			},
