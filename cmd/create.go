@@ -55,57 +55,13 @@ func CreateCar(c *cli.Context) error {
 		}
 	}
 
-	deskFile := path.Join(destDir, key.String()+".tmp.car")
-
-	// make a cid with the right length that we eventually will patch with the root.
-	hasher, err := multihash.GetHasher(multihash.SHA2_256)
+	deskFile, err := internalCreateCar(c.Context, key)
 	if err != nil {
 		return err
 	}
-	digest := hasher.Sum([]byte{})
-	hash, err := multihash.Encode(digest, multihash.SHA2_256)
-	if err != nil {
-		return err
-	}
-	proxyRoot := cid.NewCidV1(uint64(multicodec.DagPb), hash)
-
-	options := []car.Option{blockstore.WriteAsCarV1(true)}
-
-	cdest, err := blockstore.OpenReadWrite(deskFile, []cid.Cid{proxyRoot}, options...)
-	if err != nil {
-		return err
-	}
-
-	// Write the unixfs blocks into the store.
-	root, err := writeFilesWithMem(c.Context, false, cdest, key)
-	if err != nil {
-		return err
-	}
-
-	if err := cdest.Finalize(); err != nil {
-		return err
-	}
-
-	// re-open/finalize with the final root.
-	err = car.ReplaceRootsInFile(deskFile, []cid.Cid{root})
-	if err != nil {
-		return err
-	}
-
-	pieceCid, pieceSize, carSize, err := genCommp(deskFile)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("%s\t%s\t%d\t%d\n", key.String(), pieceCid.String(), pieceSize, carSize)
 
 	if deleteFile {
 		err = os.Remove(deskFile)
-		if err != nil {
-			return err
-		}
-	} else {
-		newDeskFile := path.Join(destDir, pieceCid.String()+".car")
-		err = os.Rename(deskFile, newDeskFile)
 		if err != nil {
 			return err
 		}
@@ -115,6 +71,68 @@ func CreateCar(c *cli.Context) error {
 }
 
 // CreateCar creates a car
+func internalCreateCar(ctx context.Context, key uuid.UUID) (string, error) {
+	var err error
+
+	destDir := "/cartmp"
+	_, err = os.Stat(destDir)
+	if err != nil {
+		destDir = os.TempDir()
+	}
+
+	deskFile := path.Join(destDir, key.String()+".tmp.car")
+
+	// make a cid with the right length that we eventually will patch with the root.
+	hasher, err := multihash.GetHasher(multihash.SHA2_256)
+	if err != nil {
+		return "", err
+	}
+	digest := hasher.Sum([]byte{})
+	hash, err := multihash.Encode(digest, multihash.SHA2_256)
+	if err != nil {
+		return "", err
+	}
+	proxyRoot := cid.NewCidV1(uint64(multicodec.DagPb), hash)
+
+	options := []car.Option{blockstore.WriteAsCarV1(true)}
+
+	cdest, err := blockstore.OpenReadWrite(deskFile, []cid.Cid{proxyRoot}, options...)
+	if err != nil {
+		return "", err
+	}
+
+	// Write the unixfs blocks into the store.
+	root, err := writeFilesWithMem(ctx, false, cdest, key)
+	if err != nil {
+		return "", err
+	}
+
+	if err := cdest.Finalize(); err != nil {
+		return "", err
+	}
+
+	// re-open/finalize with the final root.
+	err = car.ReplaceRootsInFile(deskFile, []cid.Cid{root})
+	if err != nil {
+		return "", err
+	}
+
+	pieceCid, pieceSize, carSize, err := genCommp(deskFile)
+	if err != nil {
+		return "", err
+	}
+	fmt.Printf("%s\t%s\t%d\t%d\n", key.String(), pieceCid.String(), pieceSize, carSize)
+
+	newDeskFile := path.Join(destDir, pieceCid.String()+".car")
+	err = os.Rename(deskFile, newDeskFile)
+	if err != nil {
+		return "", err
+	}
+
+	return newDeskFile, nil
+}
+
+// BatchCreateCar
 func BatchCreateCar(c *cli.Context) error {
 	var err error
 

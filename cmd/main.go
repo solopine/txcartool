@@ -1,11 +1,12 @@
 package main
 
 import (
-	"log"
-	"os"
-
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/urfave/cli/v2"
+	"os"
 )
+
+var log = logging.Logger("tx-car-tool")
 
 func main() { os.Exit(main1()) }
 
@@ -45,12 +46,24 @@ func main1() int {
 					},
 				},
 			},
+			{
+				Name:   "reseal",
+				Usage:  "reseal",
+				Action: Reseal,
+				Flags: []cli.Flag{
+					&cli.UintFlag{
+						Name:    "count",
+						Aliases: []string{"c"},
+						Usage:   "count of car",
+					},
+				},
+			},
 		},
 	}
 
 	err := app.Run(os.Args)
 	if err != nil {
-		log.Println(err)
+		log.Errorf("err:%+v", err)
 		return 1
 	}
 	return 0
