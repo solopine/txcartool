@@ -261,11 +261,11 @@ func addPiece(sectorSealInfo SectorSealInfo, actor abi.ActorID,
 		return abi.PieceInfo{}, err
 	}
 
-	if len(si.Pieces) != 1 {
-		log.Errorf("len(si.Pieces) != 1. len(si.Pieces): %d", len(si.Pieces))
-		return abi.PieceInfo{}, err
-	}
-	log.Infow("si.Pieces", "si.Pieces[0]", si.Pieces[0].Piece)
+	//if len(si.Pieces) != 1 {
+	//	log.Errorf("len(si.Pieces) != 1. len(si.Pieces): %d", len(si.Pieces))
+	//	return abi.PieceInfo{}, err
+	//}
+	//log.Infow("si.Pieces", "si.Pieces[0]", si.Pieces[0].Piece)
 
 	//add piece
 
