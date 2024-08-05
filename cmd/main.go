@@ -49,7 +49,7 @@ func main1() int {
 			{
 				Name:   "reseal",
 				Usage:  "reseal",
-				Action: CreateCar,
+				Action: Reseal,
 				Flags: []cli.Flag{
 					&cli.UintFlag{
 						Name:    "count",

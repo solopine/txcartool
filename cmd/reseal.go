@@ -30,41 +30,6 @@ import (
 	"time"
 )
 
-// import (
-//
-//	"bufio"
-//	"bytes"
-//	"context"
-//	"errors"
-//	addr "github.com/filecoin-project/go-address"
-//	"github.com/filecoin-project/go-state-types/abi"
-//	"github.com/filecoin-project/lotus/api"
-//	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
-//	lcli "github.com/filecoin-project/lotus/cli"
-//	"github.com/filecoin-project/lotus/storage/sealer/ffiwrapper"
-//	"github.com/filecoin-project/lotus/storage/sealer/ffiwrapper/basicfs"
-//	"github.com/filecoin-project/lotus/storage/sealer/storiface"
-//	"github.com/google/uuid"
-//	"github.com/ipfs/go-cid"
-//	"github.com/mitchellh/go-homedir"
-//	"github.com/solopine/txcartool/lib/filestore"
-//	"github.com/solopine/txcartool/lib/shared"
-//	"github.com/solopine/txcartool/util"
-//	"github.com/urfave/cli/v2"
-//	"golang.org/x/xerrors"
-//	"io"
-//	"os"
-//	"os/exec"
-//	"path"
-//	"path/filepath"
-//	"runtime"
-//	"strconv"
-//	"strings"
-//	"sync"
-//	"time"
-//
-// )
-
 func Reseal(cctx *cli.Context) error {
 	nodeApi, closer, err := lcli.GetFullNodeAPIV1(cctx)
 	if err != nil {
