@@ -141,7 +141,7 @@ func Reseal(cctx *cli.Context) error {
 
 				log.Warnf("start to process AP sector: %d. apThrottle: %d", sid, len(apThrottle))
 
-				pi, err := addPiece(sectorSealInfo, actor, sectorSize, spt, sb, minerApi)
+				pi, err := addPiece(sectorSealInfo, actor, sectorSize, spt, sb)
 				if err != nil {
 					log.Errorf("AP seal error for %d, err: %s", sid, err)
 					return APResult{}, err
@@ -243,9 +243,8 @@ func Reseal(cctx *cli.Context) error {
 }
 
 func addPiece(sectorSealInfo SectorSealInfo, actor abi.ActorID,
-
 	sectorSize abi.SectorSize, spt abi.RegisteredSealProof,
-	sb *ffiwrapper.Sealer, minerApi api.StorageMiner) (abi.PieceInfo, error) {
+	sb *ffiwrapper.Sealer) (abi.PieceInfo, error) {
 	sid := sectorSealInfo.sid
 	sidRef := storiface.SectorRef{
 		ID: abi.SectorID{
@@ -255,11 +254,7 @@ func addPiece(sectorSealInfo SectorSealInfo, actor abi.ActorID,
 		ProofType: spt,
 	}
 
-	si, err := minerApi.SectorsStatus(context.TODO(), sid, false)
-	if err != nil {
-		log.Errorf("SectorsStatus error for %d, err: %s", sid, err)
-		return abi.PieceInfo{}, err
-	}
+	pieceSize := abi.PaddedPieceSize(sectorSize).Unpadded()
 
 	//if len(si.Pieces) != 1 {
 	//	log.Errorf("len(si.Pieces) != 1. len(si.Pieces): %d", len(si.Pieces))
@@ -273,7 +268,7 @@ func addPiece(sectorSealInfo SectorSealInfo, actor abi.ActorID,
 	log.Infow("add piece for DC", "sid", sid, "carKey", sectorSealInfo.carKey)
 
 	carKey := sectorSealInfo.carKey
-	r, err := genDCAndReturnReader(context.TODO(), sidRef, si.Pieces[0].Piece.Size.Unpadded(), carKey)
+	r, err := genDCAndReturnReader(context.TODO(), sidRef, pieceSize, carKey)
 	if err != nil {
 		log.Errorw("genDCAndReturnReader error", "err", err)
 		return abi.PieceInfo{}, err
