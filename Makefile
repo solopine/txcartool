@@ -41,7 +41,8 @@ deps: $(BUILD_DEPS)
 
 txcar: $(BUILD_DEPS)
 	rm -f txcar
-	GOAMD64=v3 $(GOCC) build $(GOFLAGS) -gcflags "all=-N -l" -o txcar -ldflags " -s -w \
+	#GOAMD64=v3 $(GOCC) build $(GOFLAGS) -o txcar -ldflags " -s -w \
+	GOAMD64=v3 $(GOCC) build $(GOFLAGS) -gcflags "all=-N -l" -o txcar -ldflags " \
 	-X github.com/filecoin-project/curio/build.IsOpencl=$(FFI_USE_OPENCL) \
 	-X github.com/filecoin-project/curio/build.CurrentCommit=+git_`git log -1 --format=%h_%cI`" \
 	./cmd
