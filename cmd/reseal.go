@@ -4,10 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"errors"
 	addr "github.com/filecoin-project/go-address"
-	"github.com/filecoin-project/go-fil-markets/filestore"
-	"github.com/filecoin-project/go-fil-markets/shared"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
@@ -18,13 +15,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	"github.com/mitchellh/go-homedir"
+	"github.com/solopine/txcartool/lib/filestore"
+	"github.com/solopine/txcartool/lib/shared"
 	"github.com/solopine/txcartool/util"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/xerrors"
-	"io"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -32,6 +29,41 @@ import (
 	"sync"
 	"time"
 )
+
+// import (
+//
+//	"bufio"
+//	"bytes"
+//	"context"
+//	"errors"
+//	addr "github.com/filecoin-project/go-address"
+//	"github.com/filecoin-project/go-state-types/abi"
+//	"github.com/filecoin-project/lotus/api"
+//	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
+//	lcli "github.com/filecoin-project/lotus/cli"
+//	"github.com/filecoin-project/lotus/storage/sealer/ffiwrapper"
+//	"github.com/filecoin-project/lotus/storage/sealer/ffiwrapper/basicfs"
+//	"github.com/filecoin-project/lotus/storage/sealer/storiface"
+//	"github.com/google/uuid"
+//	"github.com/ipfs/go-cid"
+//	"github.com/mitchellh/go-homedir"
+//	"github.com/solopine/txcartool/lib/filestore"
+//	"github.com/solopine/txcartool/lib/shared"
+//	"github.com/solopine/txcartool/util"
+//	"github.com/urfave/cli/v2"
+//	"golang.org/x/xerrors"
+//	"io"
+//	"os"
+//	"os/exec"
+//	"path"
+//	"path/filepath"
+//	"runtime"
+//	"strconv"
+//	"strings"
+//	"sync"
+//	"time"
+//
+// )
 
 func Reseal(cctx *cli.Context) error {
 	nodeApi, closer, err := lcli.GetFullNodeAPIV1(cctx)
@@ -100,7 +132,7 @@ func Reseal(cctx *cli.Context) error {
 	}
 	actor := abi.ActorID(amid)
 
-	spt, err := miner.SealProofTypeFromSectorSize(sectorSize, nv, false)
+	spt, err := miner.SealProofTypeFromSectorSize(sectorSize, nv, miner.SealProofVariant_Standard)
 	if err != nil {
 		return err
 	}
@@ -249,6 +281,7 @@ func Reseal(cctx *cli.Context) error {
 }
 
 func addPiece(sectorSealInfo SectorSealInfo, actor abi.ActorID,
+
 	sectorSize abi.SectorSize, spt abi.RegisteredSealProof,
 	sb *ffiwrapper.Sealer, minerApi api.StorageMiner) (abi.PieceInfo, error) {
 	sid := sectorSealInfo.sid
@@ -293,6 +326,7 @@ func addPiece(sectorSealInfo SectorSealInfo, actor abi.ActorID,
 }
 
 func precommit1(sectorSealInfo SectorSealInfo, apResult APResult, sid abi.SectorNumber, actor abi.ActorID,
+
 	sectorSize abi.SectorSize, spt abi.RegisteredSealProof,
 	sb *ffiwrapper.Sealer, minerApi api.StorageMiner) (storiface.PreCommit1Out, *api.SectorInfo, error) {
 
@@ -312,7 +346,7 @@ func precommit1(sectorSealInfo SectorSealInfo, apResult APResult, sid abi.Sector
 
 	if len(si.Pieces) != 1 {
 		log.Errorf("len(si.Pieces) != 1. len(si.Pieces): %d", len(si.Pieces))
-		return nil, nil, errors.New("len(si.Pieces) != 1")
+		return nil, nil, xerrors.New("len(si.Pieces) != 1")
 	}
 	log.Infow("si.Pieces", "si.Pieces[0]", si.Pieces[0].Piece)
 	log.Infow("si.Pieces", "apResult.pi", apResult.pi)
@@ -329,6 +363,7 @@ func precommit1(sectorSealInfo SectorSealInfo, apResult APResult, sid abi.Sector
 }
 
 func precommit2(sid abi.SectorNumber, actor abi.ActorID,
+
 	spt abi.RegisteredSealProof, sb *ffiwrapper.Sealer,
 	p1Out storiface.PreCommit1Out,
 	commR *cid.Cid) error {
@@ -349,7 +384,7 @@ func precommit2(sid abi.SectorNumber, actor abi.ActorID,
 	}
 	if cids.Sealed.String() != commR.String() {
 		log.Errorw("SealPreCommit2 result is invalid, different from that on the chain", "result-cod", cids.Sealed.String(), "chain-cid", commR.String())
-		return errors.New("cids.Sealed.String() != commR.String()")
+		return xerrors.Errorf("cids.Sealed.String() != commR.String()")
 	}
 	log.Infow("SealPreCommit2", "cids", cids)
 
@@ -357,6 +392,7 @@ func precommit2(sid abi.SectorNumber, actor abi.ActorID,
 }
 
 func finalize(sid abi.SectorNumber, actor abi.ActorID,
+
 	spt abi.RegisteredSealProof, sb *ffiwrapper.Sealer,
 	sdir string,
 	storageDir string,
@@ -487,72 +523,6 @@ func removeFile(filePath string) error {
 	}
 
 	return nil
-}
-
-// Path represents an abstract path to a file
-type Path string
-
-// OsPath represents a path that can be located on
-// the operating system with standard os.File operations
-type OsPath string
-
-// File is a wrapper around an os file
-type File interface {
-	Path() Path
-	OsPath() OsPath
-	Size() int64
-
-	io.Closer
-	io.Reader
-	io.Writer
-	io.Seeker
-}
-
-// FileStore is an abstract filestore, used for storing temporary file data
-// when handing off a deal to the Storage Mining module. Files are created by
-// the storage market module, their path is given to the storage mining module
-// when AddPiece is called. The Storage Mining module then reads from them
-// from the FileStore, and deletes them once they have been sealed in a sector
-type FileStore interface {
-	Open(p Path) (File, error)
-	Create(p Path) (File, error)
-	Store(p Path, f File) (Path, error)
-	Delete(p Path) error
-
-	CreateTemp() (File, error)
-}
-
-type fd struct {
-	*os.File
-	filename string
-	basepath string
-}
-
-func newFile(basepath OsPath, filename Path) (File, error) {
-	var err error
-	result := fd{filename: string(filename), basepath: string(basepath)}
-	full := path.Join(string(basepath), string(filename))
-	result.File, err = os.OpenFile(full, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-func (f fd) Path() Path {
-	return Path(f.filename)
-}
-
-func (f fd) OsPath() OsPath {
-	return OsPath(f.Name())
-}
-
-func (f fd) Size() int64 {
-	info, err := os.Stat(f.Name())
-	if err != nil {
-		return -1
-	}
-	return info.Size()
 }
 
 func ReadSectorSealInfos(path string) ([]SectorSealInfo, error) {
