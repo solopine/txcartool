@@ -256,14 +256,6 @@ func addPiece(sectorSealInfo SectorSealInfo, actor abi.ActorID,
 
 	pieceSize := abi.PaddedPieceSize(sectorSize).Unpadded()
 
-	//if len(si.Pieces) != 1 {
-	//	log.Errorf("len(si.Pieces) != 1. len(si.Pieces): %d", len(si.Pieces))
-	//	return abi.PieceInfo{}, err
-	//}
-	//log.Infow("si.Pieces", "si.Pieces[0]", si.Pieces[0].Piece)
-
-	//add piece
-
 	// for DC
 	log.Infow("add piece for DC", "sid", sid, "carKey", sectorSealInfo.carKey)
 
@@ -301,11 +293,6 @@ func precommit1(sectorSealInfo SectorSealInfo, apResult APResult, sid abi.Sector
 		return nil, nil, err
 	}
 
-	if len(si.Pieces) != 1 {
-		log.Errorf("len(si.Pieces) != 1. len(si.Pieces): %d", len(si.Pieces))
-		return nil, nil, xerrors.New("len(si.Pieces) != 1")
-	}
-	log.Infow("si.Pieces", "si.Pieces[0]", si.Pieces[0].Piece)
 	log.Infow("si.Pieces", "apResult.pi", apResult.pi)
 
 	//2. p1
