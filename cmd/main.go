@@ -68,6 +68,15 @@ func main1() int {
 					}, &cli.StringFlag{
 						Name:  "smax",
 						Usage: "smax",
+					}, &cli.StringFlag{
+						Name:  "dbhost",
+						Usage: "dbhost",
+					}, &cli.StringFlag{
+						Name:  "dbuser",
+						Usage: "dbuser",
+					}, &cli.StringFlag{
+						Name:  "dbpwd",
+						Usage: "dbpwd",
 					},
 				},
 			},

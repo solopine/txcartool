@@ -6,7 +6,6 @@ import (
 	"context"
 	addr "github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
 	lcli "github.com/filecoin-project/lotus/cli"
 	"github.com/filecoin-project/lotus/storage/sealer/ffiwrapper"
@@ -16,6 +15,7 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/mitchellh/go-homedir"
 	"github.com/solopine/txcartool/lib/filestore"
+	"github.com/solopine/txcartool/lib/harmonydb"
 	"github.com/solopine/txcartool/lib/shared"
 	"github.com/solopine/txcartool/util"
 	"github.com/urfave/cli/v2"
@@ -32,12 +32,6 @@ import (
 
 func Reseal(cctx *cli.Context) error {
 	nodeApi, closer, err := lcli.GetFullNodeAPIV1(cctx)
-	if err != nil {
-		return err
-	}
-	defer closer()
-
-	minerApi, closer, err := lcli.GetStorageMinerAPI(cctx)
 	if err != nil {
 		return err
 	}
@@ -77,6 +71,19 @@ func Reseal(cctx *cli.Context) error {
 				}
 			}
 		}
+	}
+
+	ctx := cctx.Context
+	//db
+	hosts := []string{cctx.String("dbhost")}
+	username := cctx.String("dbuser")
+	password := cctx.String("dbpwd")
+	database := "yugabyte"
+	port := "5433"
+	itestID := harmonydb.ITestID("")
+	db, err := harmonydb.New(hosts, username, password, database, port, itestID)
+	if err != nil {
+		return err
 	}
 
 	sbfs := &basicfs.Provider{
@@ -131,8 +138,19 @@ func Reseal(cctx *cli.Context) error {
 			sid := sectorSealInfo.sid
 			log.Infof("try redo sector: %d. sectorsThrottle: %d", sid, len(sectorsThrottle))
 
-			si, err := minerApi.SectorsStatus(context.TODO(), sid, true)
-			log.Infof("try redo sector2: %d. si: %+v", sid, si)
+			var sectorMetas []SectorMeta
+
+			err = db.Select(ctx, &sectorMetas, `select sp_id, sector_num,ticket_epoch, ticket_value, orig_unsealed_cid, orig_sealed_cid, msg_cid_precommit from sectors_meta where sector_num=$1`, uint64(sid))
+			if err != nil {
+				log.Errorf("db:%+v", err)
+				return
+			}
+			if len(sectorMetas) != 1 {
+				log.Errorw("got from db", "sectorMetas", len(sectorMetas))
+				return
+			}
+			sectorMeta := sectorMetas[0]
+			log.Infow("got from db", "sectorMeta", sectorMeta)
 
 			//AP
 			apResult, err := func() (APResult, error) {
@@ -144,7 +162,7 @@ func Reseal(cctx *cli.Context) error {
 
 				log.Warnf("start to process AP sector: %d. apThrottle: %d", sid, len(apThrottle))
 
-				pi, err := addPiece(sectorSealInfo, actor, sectorSize, spt, sb)
+				pi, err := addPiece(sectorSealInfo, actor, sectorSize, spt, sb, &sectorMeta)
 				if err != nil {
 					log.Errorf("AP seal error for %d, err: %s", sid, err)
 					return APResult{}, err
@@ -173,14 +191,14 @@ func Reseal(cctx *cli.Context) error {
 
 				time.Sleep(5 * time.Second)
 
-				p1Out, sInfo, err := precommit1(sectorSealInfo, apResult, sid, actor, sectorSize, spt, sb, minerApi)
+				p1Out, err := precommit1(apResult, sid, actor, spt, sb, &sectorMeta)
 				if err != nil {
 					log.Errorf("P1 seal error for %d, err: %s", sid, err)
 					return P1Result{}, err
 				}
 
 				log.Warnf("end to process P1 sector: %d", sid)
-				return P1Result{sid, actor, spt, sb, p1Out, sInfo.CommR}, nil
+				return P1Result{sid, actor, spt, sb, p1Out}, nil
 
 			}()
 
@@ -202,7 +220,7 @@ func Reseal(cctx *cli.Context) error {
 
 				log.Warnf("start to process P2 sector: %d. p2Throttle: %d", sid, len(p2Throttle))
 
-				err := precommit2(p1result.sid, p1result.actor, p1result.spt, p1result.sb, p1result.p1Out, p1result.commR)
+				err := precommit2(p1result.sid, p1result.actor, p1result.spt, p1result.sb, p1result.p1Out, &sectorMeta)
 				if err != nil {
 					log.Errorf("P2 seal error for %d, err: %s", p1result.sid, err)
 					return P2Result{}, err
@@ -247,7 +265,15 @@ func Reseal(cctx *cli.Context) error {
 
 func addPiece(sectorSealInfo SectorSealInfo, actor abi.ActorID,
 	sectorSize abi.SectorSize, spt abi.RegisteredSealProof,
-	sb *ffiwrapper.Sealer) (abi.PieceInfo, error) {
+	sb *ffiwrapper.Sealer,
+	sectorMeta *SectorMeta,
+) (abi.PieceInfo, error) {
+	dbOrigUnsealedCid, err := cid.Decode(sectorMeta.OrigUnsealedCid)
+	if err != nil {
+		log.Errorw("cid.Decode error", "err", err)
+		return abi.PieceInfo{}, err
+	}
+
 	sid := sectorSealInfo.sid
 	sidRef := storiface.SectorRef{
 		ID: abi.SectorID{
@@ -274,13 +300,22 @@ func addPiece(sectorSealInfo SectorSealInfo, actor abi.ActorID,
 		return abi.PieceInfo{}, err
 	}
 	log.Infow("AddPiece", "pi", pi)
+
+	if pi.PieceCID.String() != dbOrigUnsealedCid.String() {
+		log.Errorw("pi.PieceCID != dbOrigUnsealedCid", "pi.PieceCID", pi.PieceCID.String(), "dbOrigUnsealedCid", dbOrigUnsealedCid.String())
+		return abi.PieceInfo{}, err
+	}
+
 	return pi, nil
 }
 
-func precommit1(sectorSealInfo SectorSealInfo, apResult APResult, sid abi.SectorNumber, actor abi.ActorID,
-
-	sectorSize abi.SectorSize, spt abi.RegisteredSealProof,
-	sb *ffiwrapper.Sealer, minerApi api.StorageMiner) (storiface.PreCommit1Out, *api.SectorInfo, error) {
+func precommit1(apResult APResult,
+	sid abi.SectorNumber,
+	actor abi.ActorID,
+	spt abi.RegisteredSealProof,
+	sb *ffiwrapper.Sealer,
+	sectorMeta *SectorMeta,
+) (storiface.PreCommit1Out, error) {
 
 	sidRef := storiface.SectorRef{
 		ID: abi.SectorID{
@@ -290,30 +325,29 @@ func precommit1(sectorSealInfo SectorSealInfo, apResult APResult, sid abi.Sector
 		ProofType: spt,
 	}
 
-	si, err := minerApi.SectorsStatus(context.TODO(), sid, true)
-	if err != nil {
-		log.Errorf("SectorsStatus error for %d, err: %s", sid, err)
-		return nil, nil, err
-	}
-
 	log.Infow("si.Pieces", "apResult.pi", apResult.pi)
 
 	//2. p1
-	p1Out, err := sb.SealPreCommit1(context.TODO(), sidRef, si.Ticket.Value, []abi.PieceInfo{apResult.pi})
+	p1Out, err := sb.SealPreCommit1(context.TODO(), sidRef, sectorMeta.TicketValue, []abi.PieceInfo{apResult.pi})
 	if err != nil {
 		log.Errorw("SealPreCommit1 error", "err", err)
-		return nil, nil, err
+		return nil, err
 	}
 	log.Infow("SealPreCommit1", "p1Out", p1Out)
 
-	return p1Out, &si, nil
+	return p1Out, nil
 }
 
 func precommit2(sid abi.SectorNumber, actor abi.ActorID,
-
 	spt abi.RegisteredSealProof, sb *ffiwrapper.Sealer,
 	p1Out storiface.PreCommit1Out,
-	commR *cid.Cid) error {
+	sectorMeta *SectorMeta) error {
+
+	dbOrigSealedCid, err := cid.Decode(sectorMeta.OrigSealedCid)
+	if err != nil {
+		log.Errorw("cid.Decode error", "err", err)
+		return err
+	}
 
 	sidRef := storiface.SectorRef{
 		ID: abi.SectorID{
@@ -329,8 +363,8 @@ func precommit2(sid abi.SectorNumber, actor abi.ActorID,
 		log.Errorw("SealPreCommit2 error", "err", err)
 		return err
 	}
-	if cids.Sealed.String() != commR.String() {
-		log.Errorw("SealPreCommit2 result is invalid, different from that on the chain", "result-cod", cids.Sealed.String(), "chain-cid", commR.String())
+	if cids.Sealed.String() != dbOrigSealedCid.String() {
+		log.Errorw("SealPreCommit2 result is invalid, different from that on the chain", "result-cod", cids.Sealed.String(), "chain-cid", dbOrigSealedCid.String())
 		return xerrors.Errorf("cids.Sealed.String() != commR.String()")
 	}
 	log.Infow("SealPreCommit2", "cids", cids)
@@ -519,7 +553,6 @@ type P1Result struct {
 	spt   abi.RegisteredSealProof
 	sb    *ffiwrapper.Sealer
 	p1Out storiface.PreCommit1Out
-	commR *cid.Cid
 }
 
 type P2Result struct {
@@ -563,4 +596,14 @@ func genDCAndReturnReader(ctx context.Context, sector storiface.SectorRef, piece
 		return nil, err
 	}
 	return paddedReader, nil
+}
+
+type SectorMeta struct {
+	SpID            int64  `db:"sp_id"`
+	SectorNum       int64  `db:"sector_num"`
+	TicketEpoch     int64  `db:"ticket_epoch"`
+	TicketValue     []byte `db:"ticket_value"`
+	OrigUnsealedCid string `db:"orig_unsealed_cid"`
+	OrigSealedCid   string `db:"orig_sealed_cid"`
+	MsgCidPrecommit string `db:"msg_cid_precommit"`
 }
