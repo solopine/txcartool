@@ -80,6 +80,33 @@ func main1() int {
 					},
 				},
 			},
+			{
+				Name:    "gen-c1",
+				Usage:   "gen-c1",
+				Aliases: []string{"b"},
+				Action:  GenC1,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     "seal-dir",
+						Usage:    "redo sector seal directory",
+						Required: true,
+					},
+					&cli.IntFlag{
+						Name:     "sid",
+						Usage:    "sid",
+						Required: true,
+					}, &cli.StringFlag{
+						Name:  "dbhost",
+						Usage: "dbhost",
+					}, &cli.StringFlag{
+						Name:  "dbuser",
+						Usage: "dbuser",
+					}, &cli.StringFlag{
+						Name:  "dbpwd",
+						Usage: "dbpwd",
+					},
+				},
+			},
 		},
 	}
 

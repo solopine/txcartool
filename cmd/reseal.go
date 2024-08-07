@@ -615,4 +615,5 @@ type SectorMeta struct {
 	OrigUnsealedCid string `db:"orig_unsealed_cid"`
 	OrigSealedCid   string `db:"orig_sealed_cid"`
 	MsgCidPrecommit string `db:"msg_cid_precommit"`
+	Seed            []byte `db:"seed_value"`
 }
