@@ -147,7 +147,16 @@ func Reseal(cctx *cli.Context) error {
 			}
 			if len(sectorMetas) != 1 {
 				log.Errorw("got from db", "sectorMetas", len(sectorMetas))
-				return
+
+				err = db.Select(ctx, &sectorMetas, `select sp_id, sector_number as sector_num,ticket_epoch, ticket_value, tree_d_cid as orig_unsealed_cid, tree_r_cid as orig_sealed_cid, precommit_msg_cid as msg_cid_precommit from sectors_sdr_pipeline where sector_number=$1`, uint64(sid))
+				if err != nil {
+					log.Errorf("db2:%+v", err)
+					return
+				}
+				if len(sectorMetas) != 1 {
+					log.Errorw("got from db2", "sectorMetas", len(sectorMetas))
+					return
+				}
 			}
 			sectorMeta := sectorMetas[0]
 			log.Infow("got from db", "sectorMeta", sectorMeta)
