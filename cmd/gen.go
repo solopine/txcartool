@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	addr "github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
@@ -10,11 +11,12 @@ import (
 	"github.com/filecoin-project/lotus/storage/sealer/storiface"
 	"github.com/ipfs/go-cid"
 	"github.com/solopine/txcartool/lib/harmonydb"
-	"github.com/solopine/txcartool/util"
+	"github.com/solopine/txcartool/lib/util"
 	"github.com/urfave/cli/v2"
 )
 
 func GenC1(cctx *cli.Context) error {
+	log.Info("GenC1 begin")
 	ctx := cctx.Context
 	nodeApi, closer, err := lcli.GetFullNodeAPIV1(cctx)
 	if err != nil {
@@ -85,7 +87,7 @@ func GenC1(cctx *cli.Context) error {
 	if len(sectorMetas) != 1 {
 		log.Errorw("got from db", "sectorMetas", len(sectorMetas))
 
-		err = db.Select(ctx, &sectorMetas, `select sp_id, sector_number as sector_num,ticket_epoch, ticket_value, tree_d_cid as orig_unsealed_cid, tree_r_cid as orig_sealed_cid, precommit_msg_cid as msg_cid_precommit, seed_value from sectors_sdr_pipeline where sector_number=$1`, uint64(sid))
+		err = db.Select(ctx, &sectorMetas, `select sp_id, sector_number as sector_num,ticket_epoch, ticket_value, tree_d_cid as orig_unsealed_cid, tree_r_cid as orig_sealed_cid, precommit_msg_cid as msg_cid_precommit, seed_value, porep_proof from sectors_sdr_pipeline where sector_number=$1`, uint64(sid))
 		if err != nil {
 			log.Errorf("db2:%+v", err)
 			return err
@@ -126,6 +128,22 @@ func GenC1(cctx *cli.Context) error {
 		return err
 	}
 
-	log.Infow("complete", "c1out", c1out)
+	log.Infow("c1 complete", "c1out", len(c1out))
+
+	// c2
+	c2out, err := sb.SealCommit2(ctx, sector, c1out)
+	if err != nil {
+		return err
+	}
+	log.Infow("c2 complete", "c2out.len", len(c2out))
+	log.Infow("c2 complete", "c2out", c2out)
+	log.Infow("c2 complete", "PorepProof", sectorMeta.PorepProof)
+
+	if !bytes.Equal(sectorMeta.PorepProof, []byte(c2out)) {
+		log.Info("c2 not equal")
+	} else {
+		log.Info("c2 Equal")
+	}
+
 	return nil
 }

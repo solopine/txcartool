@@ -6,43 +6,57 @@ import (
 	"os"
 )
 
-var log = logging.Logger("tx-car-tool")
+var log = logging.Logger("txcar")
 
-func main() { os.Exit(main1()) }
+func SetupLogLevels() {
+	if _, set := os.LookupEnv("GOLOG_LOG_LEVEL"); !set {
+		_ = logging.SetLogLevel("*", "INFO")
+		_ = logging.SetLogLevel("harmonytask", "DEBUG")
+		_ = logging.SetLogLevel("rpc", "ERROR")
+	}
+}
+
+func main() {
+	SetupLogLevels()
+
+	err := os.Setenv("RUST_LOG", "Error")
+	if err != nil {
+		log.Errorf("err:%+v", err)
+		os.Exit(1)
+		return
+	}
+
+	os.Exit(main1())
+}
 
 func main1() int {
 	app := &cli.App{
-		Name:  "car",
-		Usage: "Utility for working with car files",
+		Name:  "txcar",
+		Usage: "Utility for working with txcar files",
 		Commands: []*cli.Command{
 			{
 				Name:    "create",
-				Usage:   "Create a car file",
+				Usage:   "Create a txcar file",
 				Aliases: []string{"c"},
 				Action:  CreateCar,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:    "dest",
-						Aliases: []string{"o"},
-						Usage:   "The root dir of car file",
-					},
-					&cli.StringFlag{
 						Name:    "key",
 						Aliases: []string{"k"},
-						Usage:   "The key uuid of car file",
+						Usage:   "The key uuid of txcar file",
 					},
 				},
 			},
 			{
 				Name:    "batch",
-				Usage:   "batch Create car files",
+				Usage:   "batch Create txcar files",
 				Aliases: []string{"b"},
 				Action:  BatchCreateCar,
 				Flags: []cli.Flag{
 					&cli.UintFlag{
 						Name:    "count",
 						Aliases: []string{"c"},
-						Usage:   "count of car",
+						Usage:   "count of txcar",
 					},
 				},
 			},
@@ -81,10 +95,9 @@ func main1() int {
 				},
 			},
 			{
-				Name:    "gen-c1",
-				Usage:   "gen-c1",
-				Aliases: []string{"b"},
-				Action:  GenC1,
+				Name:   "gen-c1",
+				Usage:  "gen-c1",
+				Action: GenC1,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:     "seal-dir",

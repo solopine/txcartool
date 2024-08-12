@@ -1,4 +1,4 @@
-package main
+package lib
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-func genCommp(carPath string) (cid.Cid, int64, int64, error) {
+func GenCommp(carPath string) (cid.Cid, int64, int64, error) {
 
 	var pieceCid cid.Cid
 	rdr, err := os.Open(carPath)

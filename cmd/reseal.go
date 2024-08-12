@@ -17,7 +17,8 @@ import (
 	"github.com/solopine/txcartool/lib/filestore"
 	"github.com/solopine/txcartool/lib/harmonydb"
 	"github.com/solopine/txcartool/lib/shared"
-	"github.com/solopine/txcartool/util"
+	"github.com/solopine/txcartool/lib/util"
+	"github.com/solopine/txcartool/txcar"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/xerrors"
 	"os"
@@ -582,7 +583,8 @@ type SectorSealInfo struct {
 
 func genDCAndReturnReader(ctx context.Context, sector storiface.SectorRef, pieceSize abi.UnpaddedPieceSize, carKey uuid.UUID) (storiface.Data, error) {
 
-	carFile, err := internalCreateCar(ctx, carKey)
+	txCar := txcar.NewTxCar(txcar.TxCarV1, carKey)
+	carFile, _, err := txCar.CreateCarFile(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -616,4 +618,5 @@ type SectorMeta struct {
 	OrigSealedCid   string `db:"orig_sealed_cid"`
 	MsgCidPrecommit string `db:"msg_cid_precommit"`
 	Seed            []byte `db:"seed_value"`
+	PorepProof      []byte `db:"porep_proof"`
 }
