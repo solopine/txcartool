@@ -8,6 +8,7 @@ require (
 	github.com/filecoin-project/go-padreader v0.0.1
 	github.com/filecoin-project/go-state-types v0.14.0
 	github.com/filecoin-project/lotus v1.28.1
+	github.com/georgysavva/scany/v2 v2.1.3
 	github.com/google/uuid v1.6.0
 	github.com/ipfs/go-block-format v0.2.0
 	github.com/ipfs/go-cid v0.4.1
@@ -16,11 +17,14 @@ require (
 	github.com/ipld/go-car/v2 v2.13.1
 	github.com/ipld/go-codec-dagpb v1.6.0
 	github.com/ipld/go-ipld-prime v0.21.0
+	github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-multicodec v0.9.0
 	github.com/multiformats/go-multihash v0.2.3
 	github.com/raulk/clock v1.1.0
+	github.com/samber/lo v1.39.0
 	github.com/urfave/cli/v2 v2.27.3
+	github.com/yugabyte/pgx/v5 v5.5.3-yb-2
 	golang.org/x/xerrors v0.0.0-20240716161551-93cc26a95ae9
 )
 
@@ -78,7 +82,6 @@ require (
 	github.com/gbrlsnchs/jwt/v3 v3.0.1 // indirect
 	github.com/gdamore/encoding v1.0.0 // indirect
 	github.com/gdamore/tcell/v2 v2.2.0 // indirect
-	github.com/georgysavva/scany/v2 v2.1.3 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
@@ -124,7 +127,6 @@ require (
 	github.com/ipfs/go-verifcid v0.0.3 // indirect
 	github.com/ipld/go-car v0.6.2 // indirect
 	github.com/ipsn/go-secp256k1 v0.0.0-20180726113642-9d62b9f0bc52 // indirect
-	github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20231201235250-de7065d80cb9 // indirect
 	github.com/jackc/puddle/v2 v2.2.1 // indirect
@@ -173,7 +175,6 @@ require (
 	github.com/puzpuzpuz/xsync/v2 v2.4.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/samber/lo v1.39.0 // indirect
 	github.com/shirou/gopsutil v2.18.12+incompatible // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/stretchr/testify v1.9.0 // indirect
@@ -187,7 +188,6 @@ require (
 	github.com/whyrusleeping/chunker v0.0.0-20181014151217-fe64bd25879f // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
-	github.com/yugabyte/pgx/v5 v5.5.3-yb-2 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/otel v1.28.0 // indirect
 	go.opentelemetry.io/otel/metric v1.28.0 // indirect
