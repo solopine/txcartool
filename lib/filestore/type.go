@@ -24,9 +24,9 @@ type File interface {
 }
 
 // FileStore is an abstract filestore, used for storing temporary file data
-// when handing off a deal to the Storage Mining module. Files are created by
-// the storage market module, their path is given to the storage mining module
-// when AddPiece is called. The Storage Mining module then reads from them
+// when handing off a deal to the Storage Mining modules. Files are created by
+// the storage markets modules, their path is given to the storage mining modules
+// when AddPiece is called. The Storage Mining modules then reads from them
 // from the FileStore, and deletes them once they have been sealed in a sector
 type FileStore interface {
 	Open(p Path) (File, error)

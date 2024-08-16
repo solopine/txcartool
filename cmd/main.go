@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-var log = logging.Logger("txcar")
+var log = logging.Logger("main")
 
 func SetupLogLevels() {
 	if _, set := os.LookupEnv("GOLOG_LOG_LEVEL"); !set {
@@ -40,10 +40,22 @@ func main1() int {
 				Aliases: []string{"c"},
 				Action:  CreateCar,
 				Flags: []cli.Flag{
+					&cli.UintFlag{
+						Name:     "version",
+						Aliases:  []string{"v"},
+						Usage:    "The version of txcar file",
+						Required: true,
+					},
 					&cli.StringFlag{
-						Name:    "key",
-						Aliases: []string{"k"},
-						Usage:   "The key uuid of txcar file",
+						Name:     "key",
+						Aliases:  []string{"k"},
+						Usage:    "The key uuid of txcar file",
+						Required: true,
+					},
+					&cli.BoolFlag{
+						Name:  "unsealed",
+						Usage: "if generate unsealed file",
+						Value: false,
 					},
 				},
 			},
@@ -54,9 +66,33 @@ func main1() int {
 				Action:  BatchCreateCar,
 				Flags: []cli.Flag{
 					&cli.UintFlag{
-						Name:    "count",
-						Aliases: []string{"c"},
-						Usage:   "count of txcar",
+						Name:     "version",
+						Aliases:  []string{"v"},
+						Usage:    "The version of txcar file",
+						Required: true,
+					},
+					&cli.UintFlag{
+						Name:     "count",
+						Aliases:  []string{"c"},
+						Usage:    "count of txcar",
+						Required: true,
+					},
+				},
+			},
+			{
+				Name:   "index",
+				Usage:  "index a txcar file",
+				Action: IndexCar,
+				Flags: []cli.Flag{
+					&cli.UintFlag{
+						Name:     "version",
+						Aliases:  []string{"v"},
+						Usage:    "The version of txcar file",
+						Required: true,
+					}, &cli.StringFlag{
+						Name:     "car-file",
+						Usage:    "car file path",
+						Required: true,
 					},
 				},
 			},

@@ -39,15 +39,15 @@ deps: $(BUILD_DEPS)
 
 ## ldflags -s -w strips binary
 
-txcar: $(BUILD_DEPS)
-	rm -f txcar
-	#GOAMD64=v3 $(GOCC) build $(GOFLAGS) -o txcar -ldflags " -s -w \
-	GOAMD64=v3 $(GOCC) build $(GOFLAGS) -gcflags "all=-N -l" -o txcar -ldflags " \
+txcartool: $(BUILD_DEPS)
+	rm -f txcartool
+	#GOAMD64=v3 $(GOCC) build $(GOFLAGS) -o txcartool -ldflags " -s -w \
+	GOAMD64=v3 $(GOCC) build $(GOFLAGS) -gcflags "all=-N -l" -o txcartool -ldflags " \
 	-X github.com/filecoin-project/curio/build.IsOpencl=$(FFI_USE_OPENCL) \
 	-X github.com/filecoin-project/curio/build.CurrentCommit=+git_`git log -1 --format=%h_%cI`" \
 	./cmd
-.PHONY: txcar
-BINS+=txcar
+.PHONY: txcartool
+BINS+=txcartool
 
 
 
@@ -59,9 +59,9 @@ debug: build
 all: build
 .PHONY: all
 
-build: txcar
-	@[[ $$(type -P "txcar") ]] && echo "Caution: you have \
-an existing txcar binary in your PATH. This may cause problems if you don't run 'sudo make install'" || true
+build: txcartool
+	@[[ $$(type -P "txcartool") ]] && echo "Caution: you have \
+an existing txcartool binary in your PATH. This may cause problems if you don't run 'sudo make install'" || true
 
 .PHONY: build
 

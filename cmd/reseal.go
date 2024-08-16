@@ -14,9 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	"github.com/mitchellh/go-homedir"
-	"github.com/solopine/txcartool/lib/filestore"
 	"github.com/solopine/txcartool/lib/harmonydb"
-	"github.com/solopine/txcartool/lib/shared"
 	"github.com/solopine/txcartool/lib/util"
 	"github.com/solopine/txcartool/txcar"
 	"github.com/urfave/cli/v2"
@@ -172,7 +170,7 @@ func Reseal(cctx *cli.Context) error {
 
 				log.Warnf("start to process AP sector: %d. apThrottle: %d", sid, len(apThrottle))
 
-				pi, err := addPiece(sectorSealInfo, actor, sectorSize, spt, sb, &sectorMeta)
+				pi, err := addPiece(sectorSealInfo, actor, spt, sbfs, &sectorMeta)
 				if err != nil {
 					log.Errorf("AP seal error for %d, err: %s", sid, err)
 					return APResult{}, err
@@ -273,11 +271,14 @@ func Reseal(cctx *cli.Context) error {
 	return nil
 }
 
-func addPiece(sectorSealInfo SectorSealInfo, actor abi.ActorID,
-	sectorSize abi.SectorSize, spt abi.RegisteredSealProof,
-	sb *ffiwrapper.Sealer,
+func addPiece(
+	sectorSealInfo SectorSealInfo,
+	actor abi.ActorID,
+	spt abi.RegisteredSealProof,
+	sbfs *basicfs.Provider,
 	sectorMeta *SectorMeta,
 ) (abi.PieceInfo, error) {
+	ctx := context.Background()
 	dbOrigUnsealedCid, err := cid.Decode(sectorMeta.OrigUnsealedCid)
 	if err != nil {
 		log.Errorw("cid.Decode error", "err", err)
@@ -293,22 +294,31 @@ func addPiece(sectorSealInfo SectorSealInfo, actor abi.ActorID,
 		ProofType: spt,
 	}
 
-	pieceSize := abi.PaddedPieceSize(sectorSize).Unpadded()
-
 	// for DC
 	log.Infow("add piece for DC", "sid", sid, "carKey", sectorSealInfo.carKey)
 
 	carKey := sectorSealInfo.carKey
-	r, err := genDCAndReturnReader(context.TODO(), sidRef, pieceSize, carKey)
+	txCar := txcar.NewTxCar(txcar.TxCarV1, carKey)
+	carFile, txPiece, err := txCar.CreateCarFile(ctx)
 	if err != nil {
-		log.Errorw("genDCAndReturnReader error", "err", err)
 		return abi.PieceInfo{}, err
 	}
-	pi, err := sb.AddPiece(context.TODO(), sidRef, nil, abi.PaddedPieceSize(sectorSize).Unpadded(), r)
+
+	unsealedFile, pi, err := txcar.GenUnsealedFile(ctx, *txPiece, carFile)
 	if err != nil {
-		log.Errorw("AddPiece error", "err", err)
 		return abi.PieceInfo{}, err
 	}
+
+	stagedPath, done, err := sbfs.AcquireSector(ctx, sidRef, 0, storiface.FTUnsealed, storiface.PathSealing)
+	defer done()
+	if err != nil {
+		return abi.PieceInfo{}, err
+	}
+	err = os.Rename(unsealedFile, stagedPath.Unsealed)
+	if err != nil {
+		return abi.PieceInfo{}, err
+	}
+
 	log.Infow("AddPiece", "pi", pi)
 
 	if pi.PieceCID.String() != dbOrigUnsealedCid.String() {
@@ -579,34 +589,6 @@ type SectorSealInfo struct {
 	sealType string
 	isDC     bool
 	carKey   uuid.UUID
-}
-
-func genDCAndReturnReader(ctx context.Context, sector storiface.SectorRef, pieceSize abi.UnpaddedPieceSize, carKey uuid.UUID) (storiface.Data, error) {
-
-	txCar := txcar.NewTxCar(txcar.TxCarV1, carKey)
-	carFile, _, err := txCar.CreateCarFile(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// maker reader
-	dcfs, err := filestore.NewLocalFileStore("/")
-	if err != nil {
-		return nil, err
-	}
-
-	dcFile, err := dcfs.Open(filestore.Path(carFile))
-	if err != nil {
-		log.Errorw("genDCAndReturnReader.dcfs.Open", "sector", sector)
-		return nil, err
-	}
-
-	paddedReader, err := shared.NewInflatorReader(dcFile, uint64(dcFile.Size()), pieceSize)
-	if err != nil {
-		log.Errorw("genDCAndReturnReader.NewInflatorReader", "sector", sector)
-		return nil, err
-	}
-	return paddedReader, nil
 }
 
 type SectorMeta struct {
