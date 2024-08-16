@@ -43,7 +43,7 @@ func IndexCar(cctx *cli.Context) error {
 
 	stop, err := node.New(ctx,
 		node.Override(new(dtypes.ShutdownChan), shutdownChan),
-		node.Base(),
+		//node.Base(),
 		node.Repo(r),
 	)
 	if err != nil {

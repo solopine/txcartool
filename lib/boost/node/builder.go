@@ -15,7 +15,6 @@ import (
 	"time"
 
 	lotus_api "github.com/filecoin-project/lotus/api"
-	"github.com/filecoin-project/lotus/chain/types"
 	lotus_journal "github.com/filecoin-project/lotus/journal"
 	"github.com/filecoin-project/lotus/journal/alerting"
 	_ "github.com/filecoin-project/lotus/lib/sigs/bls"
@@ -32,8 +31,6 @@ import (
 	"github.com/filecoin-project/lotus/system"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/go-metrics-interface"
-	ci "github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
@@ -214,7 +211,10 @@ func Repo(r lotus_repo.Repo) Option {
 		// If it's not a mem-repo
 		if _, ok := r.(*lotus_repo.MemRepo); !ok {
 			// Migrate config file
-			return err
+			err = config.ConfigMigrate(lr.Path())
+			if err != nil {
+				return fmt.Errorf("migrating config: %w", err)
+			}
 		}
 		c, err := lr.Config()
 		if err != nil {
@@ -226,15 +226,15 @@ func Repo(r lotus_repo.Repo) Option {
 		}
 
 		return Options(
-			Override(new(lotus_repo.LockedRepo), lotus_modules.LockedRepo(lr)), // module handles closing
-
-			Override(new(ci.PrivKey), lotus_lp2p.PrivKey),
-			Override(new(ci.PubKey), ci.PrivKey.GetPublic),
-			Override(new(peer.ID), peer.IDFromPublicKey),
-
-			Override(new(types.KeyStore), modules.KeyStore),
-
-			Override(new(*lotus_dtypes.APIAlg), lotus_modules.APISecret),
+			//Override(new(lotus_repo.LockedRepo), lotus_modules.LockedRepo(lr)), // module handles closing
+			//
+			//Override(new(ci.PrivKey), lotus_lp2p.PrivKey),
+			//Override(new(ci.PubKey), ci.PrivKey.GetPublic),
+			//Override(new(peer.ID), peer.IDFromPublicKey),
+			//
+			//Override(new(types.KeyStore), modules.KeyStore),
+			//
+			//Override(new(*lotus_dtypes.APIAlg), lotus_modules.APISecret),
 
 			ConfigBoost(cfg),
 		)(settings)
@@ -305,7 +305,7 @@ var BoostNode = Options(
 func ConfigBoost(cfg *config.Boost) Option {
 
 	return Options(
-		ConfigCommon(&cfg.Common),
+		//ConfigCommon(&cfg.Common),
 
 		// Lotus Markets (retrieval deps)
 		Override(new(*piecedirectory.PieceDirectory), modules.NewPieceDirectory(cfg)),

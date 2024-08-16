@@ -94,6 +94,11 @@ func main1() int {
 						Usage:    "car file path",
 						Required: true,
 					},
+					&cli.StringFlag{
+						Name:  FlagBoostRepo,
+						Usage: "tx repo path",
+						Value: "~/tx_repo",
+					},
 				},
 			},
 			{
