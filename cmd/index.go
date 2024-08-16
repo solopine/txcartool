@@ -42,6 +42,7 @@ func IndexCar(cctx *cli.Context) error {
 	shutdownChan := make(chan struct{})
 
 	stop, err := node.New(ctx,
+		node.BoostAPI(),
 		node.Override(new(dtypes.ShutdownChan), shutdownChan),
 		//node.Base(),
 		node.Repo(r),

@@ -11,6 +11,7 @@ import (
 	"github.com/solopine/txcartool/lib/boost/node/config"
 	"github.com/solopine/txcartool/lib/boost/node/modules"
 	"github.com/solopine/txcartool/lib/boost/node/modules/dtypes"
+	"github.com/solopine/txcartool/lib/boost/node/repo"
 	"github.com/solopine/txcartool/lib/boost/piecedirectory"
 	"time"
 
@@ -309,5 +310,18 @@ func ConfigBoost(cfg *config.Boost) Option {
 
 		// Lotus Markets (retrieval deps)
 		Override(new(*piecedirectory.PieceDirectory), modules.NewPieceDirectory(cfg)),
+	)
+}
+
+func BoostAPI() Option {
+	return Options(
+		ApplyIf(func(s *Settings) bool { return s.Config },
+			Error(errors.New("the StorageMiner option must be set before Config option")),
+		),
+
+		func(s *Settings) error {
+			s.nodeType = repo.Boost
+			return nil
+		},
 	)
 }
