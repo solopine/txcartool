@@ -13,7 +13,6 @@ import (
 
 var log = logging.Logger("migrations")
 
-//go:embed *.sql *.go
 var EmbedMigrations embed.FS
 
 type DBSettings struct {
