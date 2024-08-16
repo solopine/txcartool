@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	bdclient "github.com/filecoin-project/boost/extern/boostd-data/client"
-	"github.com/filecoin-project/boost/extern/boostd-data/model"
+	bdclient "github.com/solopine/txcartool/lib/boostd-data/client"
+	"github.com/solopine/txcartool/lib/boostd-data/model"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"

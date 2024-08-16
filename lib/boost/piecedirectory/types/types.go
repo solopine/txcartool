@@ -3,9 +3,9 @@ package types
 import (
 	"context"
 	"errors"
+	"github.com/solopine/txcartool/lib/boostd-data/model"
 	"io"
 
-	"github.com/filecoin-project/boost/extern/boostd-data/model"
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 )
