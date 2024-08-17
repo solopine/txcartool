@@ -19,6 +19,7 @@ import (
 	"github.com/solopine/txcartool/lib/boost/node/config"
 	"github.com/solopine/txcartool/lib/boost/node/modules"
 	"github.com/solopine/txcartool/lib/boost/node/repo"
+	"github.com/solopine/txcartool/lib/boost/piecedirectory"
 	bdclient "github.com/solopine/txcartool/lib/boostd-data/client"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
@@ -63,7 +64,7 @@ const (
 
 	// health checks
 	CheckFDLimit
-	StartPieceDirectoryKey
+	StartJobKey
 
 	_nInvokes // keep this last
 )
@@ -276,7 +277,8 @@ func ConfigBoost(cfg *config.Boost) Option {
 		// Lotus Markets (retrieval deps)
 		Override(new(*bdclient.Store), modules.NewPieceDirectoryStore(cfg)),
 		Override(new(*lib.MultiMinerAccessor), modules.NewMultiminerSectorAccessor(cfg)),
-		Override(StartPieceDirectoryKey, modules.NewPieceDirectory(cfg)),
+		Override(new(*piecedirectory.PieceDirectory), modules.NewPieceDirectory(cfg)),
+		Override(StartJobKey, startJob()),
 	)
 }
 
@@ -291,4 +293,10 @@ func BoostAPI() Option {
 			return nil
 		},
 	)
+}
+
+func startJob() func(pd *piecedirectory.PieceDirectory) error {
+	return func(pd *piecedirectory.PieceDirectory) error {
+		return nil
+	}
 }
