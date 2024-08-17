@@ -2,37 +2,20 @@ package node
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/solopine/txcartool/lib/boost/api"
-	"github.com/solopine/txcartool/lib/boost/build"
-	"github.com/solopine/txcartool/lib/boost/db"
-	"github.com/solopine/txcartool/lib/boost/node/config"
-	"github.com/solopine/txcartool/lib/boost/node/modules"
-	"github.com/solopine/txcartool/lib/boost/node/modules/dtypes"
-	"github.com/solopine/txcartool/lib/boost/node/repo"
-	"github.com/solopine/txcartool/lib/boost/piecedirectory"
-	"time"
-
-	lotus_api "github.com/filecoin-project/lotus/api"
-	lotus_journal "github.com/filecoin-project/lotus/journal"
-	"github.com/filecoin-project/lotus/journal/alerting"
 	_ "github.com/filecoin-project/lotus/lib/sigs/bls"
 	_ "github.com/filecoin-project/lotus/lib/sigs/secp"
-	lotus_common "github.com/filecoin-project/lotus/node/impl/common"
-	lotus_net "github.com/filecoin-project/lotus/node/impl/net"
 	lotus_modules "github.com/filecoin-project/lotus/node/modules"
 	lotus_dtypes "github.com/filecoin-project/lotus/node/modules/dtypes"
 	lotus_helpers "github.com/filecoin-project/lotus/node/modules/helpers"
-	lotus_lp2p "github.com/filecoin-project/lotus/node/modules/lp2p"
 	lotus_repo "github.com/filecoin-project/lotus/node/repo"
-	"github.com/filecoin-project/lotus/storage/paths"
-	"github.com/filecoin-project/lotus/storage/sealer"
-	"github.com/filecoin-project/lotus/system"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/go-metrics-interface"
-	"github.com/multiformats/go-multiaddr"
+	"github.com/solopine/txcartool/lib/boost/node/config"
+	"github.com/solopine/txcartool/lib/boost/node/modules"
+	"github.com/solopine/txcartool/lib/boost/node/repo"
+	bdclient "github.com/solopine/txcartool/lib/boostd-data/client"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
 )
@@ -126,20 +109,20 @@ type Settings struct {
 func defaults() []Option {
 	return []Option{
 		// global system journal
-		Override(new(lotus_journal.DisabledEvents), lotus_journal.EnvDisabledEvents),
-		Override(new(lotus_journal.Journal), lotus_modules.OpenFilesystemJournal),
-		Override(new(*alerting.Alerting), alerting.NewAlertingSystem),
-		Override(new(lotus_dtypes.NodeStartTime), FromVal(lotus_dtypes.NodeStartTime(time.Now()))),
-
-		Override(CheckFDLimit, lotus_modules.CheckFdLimit(build.DefaultFDLimit)),
-
-		Override(new(system.MemoryConstraints), modules.MemoryConstraints),
-
+		//Override(new(lotus_journal.DisabledEvents), lotus_journal.EnvDisabledEvents),
+		//Override(new(lotus_journal.Journal), lotus_modules.OpenFilesystemJournal),
+		//Override(new(*alerting.Alerting), alerting.NewAlertingSystem),
+		//Override(new(lotus_dtypes.NodeStartTime), FromVal(lotus_dtypes.NodeStartTime(time.Now()))),
+		//
+		//Override(CheckFDLimit, lotus_modules.CheckFdLimit(build.DefaultFDLimit)),
+		//
+		//Override(new(system.MemoryConstraints), modules.MemoryConstraints),
+		//
 		Override(new(lotus_helpers.MetricsCtx), func() context.Context {
 			return metrics.CtxScope(context.Background(), "boost")
 		}),
 
-		Override(new(lotus_dtypes.ShutdownChan), make(chan struct{})),
+		//Override(new(lotus_dtypes.ShutdownChan), make(chan struct{})),
 	}
 }
 
@@ -157,49 +140,49 @@ func Base() Option {
 func ConfigCommon(cfg *config.Common) Option {
 	return Options(
 		func(s *Settings) error { s.Config = true; return nil },
-		Override(new(dtypes.APIEndpoint), func() (dtypes.APIEndpoint, error) {
-			return multiaddr.NewMultiaddr(cfg.API.ListenAddress)
-		}),
-		Override(SetApiEndpointKey, func(lr lotus_repo.LockedRepo, e dtypes.APIEndpoint) error {
-			return lr.SetAPIEndpoint(e)
-		}),
-		Override(new(paths.URLs), func(e dtypes.APIEndpoint) (paths.URLs, error) {
-			ip := cfg.API.RemoteListenAddress
-
-			var urls paths.URLs
-			urls = append(urls, "http://"+ip+"/remote") // TODO: This makes no assumptions, and probably could...
-			return urls, nil
-		}),
-		ApplyIf(func(s *Settings) bool { return s.Base }), // apply only if Base has already been applied
-		Override(new(api.Net), From(new(lotus_net.NetAPI))),
-
-		Override(new(lotus_api.Net), From(new(lotus_net.NetAPI))),
-		Override(new(lotus_api.Common), From(new(lotus_common.CommonAPI))),
+		//Override(new(dtypes.APIEndpoint), func() (dtypes.APIEndpoint, error) {
+		//	return multiaddr.NewMultiaddr(cfg.API.ListenAddress)
+		//}),
+		//Override(SetApiEndpointKey, func(lr lotus_repo.LockedRepo, e dtypes.APIEndpoint) error {
+		//	return lr.SetAPIEndpoint(e)
+		//}),
+		//Override(new(paths.URLs), func(e dtypes.APIEndpoint) (paths.URLs, error) {
+		//	ip := cfg.API.RemoteListenAddress
+		//
+		//	var urls paths.URLs
+		//	urls = append(urls, "http://"+ip+"/remote") // TODO: This makes no assumptions, and probably could...
+		//	return urls, nil
+		//}),
+		//ApplyIf(func(s *Settings) bool { return s.Base }), // apply only if Base has already been applied
+		//Override(new(api.Net), From(new(lotus_net.NetAPI))),
+		//
+		//Override(new(lotus_api.Net), From(new(lotus_net.NetAPI))),
+		//Override(new(lotus_api.Common), From(new(lotus_common.CommonAPI))),
 
 		Override(new(lotus_dtypes.MetadataDS), lotus_modules.Datastore(cfg.Backup.DisableMetadataLog)),
-		Override(StartListeningKey, lotus_lp2p.StartListening(cfg.Libp2p.ListenAddresses)),
-		Override(ConnectionManagerKey, lotus_lp2p.ConnectionManager(
-			cfg.Libp2p.ConnMgrLow,
-			cfg.Libp2p.ConnMgrHigh,
-			time.Duration(cfg.Libp2p.ConnMgrGrace),
-			cfg.Libp2p.ProtectedPeers)),
-		ApplyIf(func(s *Settings) bool { return len(cfg.Libp2p.BootstrapPeers) > 0 },
-			Override(new(lotus_dtypes.BootstrapPeers), modules.ConfigBootstrap(cfg.Libp2p.BootstrapPeers)),
-		),
-
-		//Override(new(network.ResourceManager), modules.ResourceManager(cfg.Libp2p.ConnMgrHigh)),
-		//Override(ResourceManagerKey, lp2p.ResourceManagerOption),
-		//Override(new(*pubsub.PubSub), lp2p.GossipSub),
-		//Override(new(*lotus_config.Pubsub), &cfg.Pubsub),
-
-		ApplyIf(func(s *Settings) bool { return len(cfg.Libp2p.BootstrapPeers) > 0 },
-			Override(new(lotus_dtypes.BootstrapPeers), modules.ConfigBootstrap(cfg.Libp2p.BootstrapPeers)),
-		),
-
-		Override(AddrsFactoryKey, lotus_lp2p.AddrsFactory(
-			cfg.Libp2p.AnnounceAddresses,
-			cfg.Libp2p.NoAnnounceAddresses)),
-		If(!cfg.Libp2p.DisableNatPortMap, Override(NatPortMapKey, lotus_lp2p.NatPortMap)),
+		//Override(StartListeningKey, lotus_lp2p.StartListening(cfg.Libp2p.ListenAddresses)),
+		//Override(ConnectionManagerKey, lotus_lp2p.ConnectionManager(
+		//	cfg.Libp2p.ConnMgrLow,
+		//	cfg.Libp2p.ConnMgrHigh,
+		//	time.Duration(cfg.Libp2p.ConnMgrGrace),
+		//	cfg.Libp2p.ProtectedPeers)),
+		//ApplyIf(func(s *Settings) bool { return len(cfg.Libp2p.BootstrapPeers) > 0 },
+		//	Override(new(lotus_dtypes.BootstrapPeers), modules.ConfigBootstrap(cfg.Libp2p.BootstrapPeers)),
+		//),
+		//
+		////Override(new(network.ResourceManager), modules.ResourceManager(cfg.Libp2p.ConnMgrHigh)),
+		////Override(ResourceManagerKey, lp2p.ResourceManagerOption),
+		////Override(new(*pubsub.PubSub), lp2p.GossipSub),
+		////Override(new(*lotus_config.Pubsub), &cfg.Pubsub),
+		//
+		//ApplyIf(func(s *Settings) bool { return len(cfg.Libp2p.BootstrapPeers) > 0 },
+		//	Override(new(lotus_dtypes.BootstrapPeers), modules.ConfigBootstrap(cfg.Libp2p.BootstrapPeers)),
+		//),
+		//
+		//Override(AddrsFactoryKey, lotus_lp2p.AddrsFactory(
+		//	cfg.Libp2p.AnnounceAddresses,
+		//	cfg.Libp2p.NoAnnounceAddresses)),
+		//If(!cfg.Libp2p.DisableNatPortMap, Override(NatPortMapKey, lotus_lp2p.NatPortMap)),
 	)
 }
 
@@ -227,7 +210,7 @@ func Repo(r lotus_repo.Repo) Option {
 		}
 
 		return Options(
-			//Override(new(lotus_repo.LockedRepo), lotus_modules.LockedRepo(lr)), // module handles closing
+			Override(new(lotus_repo.LockedRepo), lotus_modules.LockedRepo(lr)), // module handles closing
 			//
 			//Override(new(ci.PrivKey), lotus_lp2p.PrivKey),
 			//Override(new(ci.PubKey), ci.PrivKey.GetPublic),
@@ -290,26 +273,27 @@ func New(ctx context.Context, opts ...Option) (StopFunc, error) {
 }
 
 var BoostNode = Options(
-	Override(new(sealer.StorageAuth), lotus_modules.StorageAuth),
+	//Override(new(sealer.StorageAuth), lotus_modules.StorageAuth),
 
 	// Actor config
 	Override(new(lotus_dtypes.MinerAddress), lotus_modules.MinerAddress),
 	Override(new(lotus_dtypes.MinerID), lotus_modules.MinerID),
-
-	Override(new(lotus_dtypes.NetworkName), lotus_modules.StorageNetworkName),
-	Override(new(*sql.DB), modules.NewBoostDB),
-	Override(new(*modules.LogSqlDB), modules.NewLogsSqlDB),
-	Override(new(*db.DirectDealsDB), modules.NewDirectDealsDB),
-	Override(new(*db.SectorStateDB), modules.NewSectorStateDB),
+	//
+	//Override(new(lotus_dtypes.NetworkName), lotus_modules.StorageNetworkName),
+	//Override(new(*sql.DB), modules.NewBoostDB),
+	//Override(new(*modules.LogSqlDB), modules.NewLogsSqlDB),
+	//Override(new(*db.DirectDealsDB), modules.NewDirectDealsDB),
+	//Override(new(*db.SectorStateDB), modules.NewSectorStateDB),
 )
 
 func ConfigBoost(cfg *config.Boost) Option {
 
 	return Options(
-		//ConfigCommon(&cfg.Common),
+		ConfigCommon(&cfg.Common),
 
 		// Lotus Markets (retrieval deps)
-		Override(new(*piecedirectory.PieceDirectory), modules.NewPieceDirectory(cfg)),
+		Override(new(*bdclient.Store), modules.NewPieceDirectoryStore(cfg)),
+		//Override(new(*piecedirectory.PieceDirectory), modules.NewPieceDirectory(cfg)),
 	)
 }
 
