@@ -42,6 +42,7 @@ require (
 
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2
+	github.com/BurntSushi/toml v1.3.2
 	github.com/filecoin-project/go-cbor-util v0.0.1
 	github.com/gbrlsnchs/jwt/v3 v3.0.1
 	github.com/gorilla/mux v1.8.1
@@ -54,6 +55,7 @@ require (
 	github.com/ipld/go-car v0.6.2
 	github.com/ipni/go-libipni v0.0.8
 	github.com/jackc/pgtype v1.10.0
+	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/lib/pq v1.10.9
 	github.com/libp2p/go-libp2p v0.35.4
 	github.com/libp2p/go-libp2p-record v0.2.0
@@ -73,7 +75,6 @@ require (
 )
 
 require (
-	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/GeertJohan/go.incremental v1.0.0 // indirect
 	github.com/GeertJohan/go.rice v1.0.3 // indirect
 	github.com/Gurpartap/async v0.0.0-20180927173644-4f7f499dd9ee // indirect
@@ -202,7 +203,6 @@ require (
 	github.com/jessevdk/go-flags v1.4.0 // indirect
 	github.com/joeshaw/multierror v0.0.0-20140124173710-69b34d4ec901 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
-	github.com/kelseyhightower/envconfig v1.4.0 // indirect
 	github.com/kilic/bls12-381 v0.1.0 // indirect
 	github.com/klauspost/compress v1.17.8 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
@@ -313,6 +313,7 @@ require (
 	golang.org/x/sys v0.21.0 // indirect
 	golang.org/x/term v0.21.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
+	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
 	gonum.org/v1/gonum v0.15.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240515191416-fc5f0ca64291 // indirect
