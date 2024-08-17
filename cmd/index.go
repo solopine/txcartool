@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	"github.com/filecoin-project/lotus/api/v1api"
 	lcli "github.com/filecoin-project/lotus/cli"
+	lcliutil "github.com/filecoin-project/lotus/cli/util"
+	"github.com/filecoin-project/lotus/gateway"
 	lotus_repo "github.com/filecoin-project/lotus/node/repo"
 	"github.com/solopine/txcartool/lib/boost/node"
 	"github.com/solopine/txcartool/lib/boost/node/modules/dtypes"
-
 	"github.com/urfave/cli/v2"
 )
 
@@ -16,12 +18,12 @@ const (
 
 func IndexCar(cctx *cli.Context) error {
 
-	//subCh := gateway.NewEthSubHandler()
-	//fullnodeApi, ncloser, err := lcli.GetFullNodeAPIV1(cctx, lcliutil.FullNodeWithEthSubscribtionHandler(subCh))
-	//if err != nil {
-	//	return fmt.Errorf("getting full node api: %w", err)
-	//}
-	//defer ncloser()
+	subCh := gateway.NewEthSubHandler()
+	fullnodeApi, ncloser, err := lcli.GetFullNodeAPIV1(cctx, lcliutil.FullNodeWithEthSubscribtionHandler(subCh))
+	if err != nil {
+		return fmt.Errorf("getting full node api: %w", err)
+	}
+	defer ncloser()
 
 	ctx := lcli.ReqContext(cctx)
 
@@ -46,6 +48,7 @@ func IndexCar(cctx *cli.Context) error {
 		node.Override(new(dtypes.ShutdownChan), shutdownChan),
 		node.Base(),
 		node.Repo(r),
+		node.Override(new(v1api.FullNode), fullnodeApi),
 	)
 	if err != nil {
 		return fmt.Errorf("creating node: %w", err)

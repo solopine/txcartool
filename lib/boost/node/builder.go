@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	lotus_journal "github.com/filecoin-project/lotus/journal"
+	"github.com/filecoin-project/lotus/journal/alerting"
 	_ "github.com/filecoin-project/lotus/lib/sigs/bls"
 	_ "github.com/filecoin-project/lotus/lib/sigs/secp"
 	lotus_modules "github.com/filecoin-project/lotus/node/modules"
@@ -12,6 +14,8 @@ import (
 	lotus_repo "github.com/filecoin-project/lotus/node/repo"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/go-metrics-interface"
+	"github.com/solopine/txcartool/lib/boost/build"
+	"github.com/solopine/txcartool/lib/boost/cmd/lib"
 	"github.com/solopine/txcartool/lib/boost/node/config"
 	"github.com/solopine/txcartool/lib/boost/node/modules"
 	"github.com/solopine/txcartool/lib/boost/node/repo"
@@ -59,29 +63,7 @@ const (
 
 	// health checks
 	CheckFDLimit
-
-	// libp2p
-	PstoreAddSelfKeysKey
-	StartListeningKey
-
-	// miner
-	StartProviderDataTransferKey
-	StartPieceDoctorKey
-	HandleCreateRetrievalTablesKey
-	HandleRetrievalEventsKey
-	HandleRetrievalAskKey
-	HandleRetrievalTransportsKey
-	HandleProtocolProxyKey
-
-	// boost should be started after legacy markets (HandleDealsKey)
-	HandleBoostDealsKey
-	HandleContractDealsKey
-	HandleProposalLogCleanerKey
-
-	// daemon
-	ExtractApiKey
-
-	SetApiEndpointKey
+	StartPieceDirectoryKey
 
 	_nInvokes // keep this last
 )
@@ -109,12 +91,12 @@ type Settings struct {
 func defaults() []Option {
 	return []Option{
 		// global system journal
-		//Override(new(lotus_journal.DisabledEvents), lotus_journal.EnvDisabledEvents),
-		//Override(new(lotus_journal.Journal), lotus_modules.OpenFilesystemJournal),
-		//Override(new(*alerting.Alerting), alerting.NewAlertingSystem),
+		Override(new(lotus_journal.DisabledEvents), lotus_journal.EnvDisabledEvents),
+		Override(new(lotus_journal.Journal), lotus_modules.OpenFilesystemJournal),
+		Override(new(*alerting.Alerting), alerting.NewAlertingSystem),
 		//Override(new(lotus_dtypes.NodeStartTime), FromVal(lotus_dtypes.NodeStartTime(time.Now()))),
 		//
-		//Override(CheckFDLimit, lotus_modules.CheckFdLimit(build.DefaultFDLimit)),
+		Override(CheckFDLimit, lotus_modules.CheckFdLimit(build.DefaultFDLimit)),
 		//
 		//Override(new(system.MemoryConstraints), modules.MemoryConstraints),
 		//
@@ -293,7 +275,8 @@ func ConfigBoost(cfg *config.Boost) Option {
 
 		// Lotus Markets (retrieval deps)
 		Override(new(*bdclient.Store), modules.NewPieceDirectoryStore(cfg)),
-		//Override(new(*piecedirectory.PieceDirectory), modules.NewPieceDirectory(cfg)),
+		Override(new(*lib.MultiMinerAccessor), modules.NewMultiminerSectorAccessor(cfg)),
+		Override(StartPieceDirectoryKey, modules.NewPieceDirectory(cfg)),
 	)
 }
 
