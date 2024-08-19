@@ -257,6 +257,28 @@ func (ps *PieceDirectory) AddDealForPiece(ctx context.Context, pieceCid cid.Cid,
 	return nil
 }
 
+func (ps *PieceDirectory) TxAddDealForPiece(ctx context.Context, pieceCid cid.Cid, dealInfo model.DealInfo) error {
+	defer func(start time.Time) {
+		log.Debugw("piece directory ; AddDealForPiece span", "piececid", pieceCid, "uuid", dealInfo.DealUuid, "took", time.Since(start))
+	}(time.Now())
+
+	ctx, span := tracing.Tracer.Start(ctx, "pm.add_deal_for_piece")
+	defer span.End()
+
+	// Check if the indexes have already been added
+	isIndexed, err := ps.store.IsIndexed(ctx, pieceCid)
+	if err != nil {
+		return err
+	}
+	log.Infow("TxAddDealForPiece", "isIndexed", isIndexed)
+
+	if err := ps.addIndexForPieceThrottled(ctx, pieceCid, dealInfo); err != nil {
+		return fmt.Errorf("adding index for piece %s: %w", pieceCid, err)
+	}
+
+	return nil
+}
+
 type addIndexOperation struct {
 	done chan struct{}
 	err  error
@@ -365,9 +387,9 @@ func (ps *PieceDirectory) addIndexForPiece(ctx context.Context, pieceCid cid.Cid
 			// Add mh => piece index to store: "which piece contains the multihash?"
 			// Add mh => offset index to store: "what is the offset of the multihash within the piece?"
 			log.Debugw("add index: store index in local index directory", "pieceCid", pieceCid, "chunk", i, "chunksTotal", concurrency, "len(recs)", len(recs[start:end]), "start", start, "end", end)
-			if err := ps.store.AddIndex(ctx, pieceCid, recs[start:end], true); err != nil {
-				return fmt.Errorf("adding CAR index for piece %s: %w", pieceCid, err)
-			}
+			//if err := ps.store.AddIndex(ctx, pieceCid, recs[start:end], true); err != nil {
+			//	return fmt.Errorf("adding CAR index for piece %s: %w", pieceCid, err)
+			//}
 			return nil
 		})
 	}

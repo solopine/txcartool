@@ -2,8 +2,10 @@ package node
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/filecoin-project/go-state-types/abi"
 	lotus_journal "github.com/filecoin-project/lotus/journal"
 	"github.com/filecoin-project/lotus/journal/alerting"
 	_ "github.com/filecoin-project/lotus/lib/sigs/bls"
@@ -12,15 +14,18 @@ import (
 	lotus_dtypes "github.com/filecoin-project/lotus/node/modules/dtypes"
 	lotus_helpers "github.com/filecoin-project/lotus/node/modules/helpers"
 	lotus_repo "github.com/filecoin-project/lotus/node/repo"
+	"github.com/google/uuid"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/go-metrics-interface"
 	"github.com/solopine/txcartool/lib/boost/build"
 	"github.com/solopine/txcartool/lib/boost/cmd/lib"
+	"github.com/solopine/txcartool/lib/boost/db"
 	"github.com/solopine/txcartool/lib/boost/node/config"
 	"github.com/solopine/txcartool/lib/boost/node/modules"
 	"github.com/solopine/txcartool/lib/boost/node/repo"
 	"github.com/solopine/txcartool/lib/boost/piecedirectory"
 	bdclient "github.com/solopine/txcartool/lib/boostd-data/client"
+	"github.com/solopine/txcartool/lib/boostd-data/model"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
 )
@@ -263,9 +268,9 @@ var BoostNode = Options(
 	Override(new(lotus_dtypes.MinerID), lotus_modules.MinerID),
 	//
 	//Override(new(lotus_dtypes.NetworkName), lotus_modules.StorageNetworkName),
-	//Override(new(*sql.DB), modules.NewBoostDB),
+	Override(new(*sql.DB), modules.NewBoostDB),
 	//Override(new(*modules.LogSqlDB), modules.NewLogsSqlDB),
-	//Override(new(*db.DirectDealsDB), modules.NewDirectDealsDB),
+	Override(new(*db.DirectDealsDB), modules.NewDirectDealsDB),
 	//Override(new(*db.SectorStateDB), modules.NewSectorStateDB),
 )
 
@@ -295,8 +300,53 @@ func BoostAPI() Option {
 	)
 }
 
-func startJob() func(pd *piecedirectory.PieceDirectory) error {
-	return func(pd *piecedirectory.PieceDirectory) error {
+func startJob() func(lc fx.Lifecycle, db *db.DirectDealsDB, pd *piecedirectory.PieceDirectory) error {
+	return func(lc fx.Lifecycle, db *db.DirectDealsDB, pd *piecedirectory.PieceDirectory) error {
+		pdctx, cancel := context.WithCancel(context.Background())
+
+		lc.Append(fx.Hook{
+			OnStart: func(ctx context.Context) error {
+				return doJob(pdctx, db, pd)
+			},
+			OnStop: func(ctx context.Context) error {
+				cancel()
+				return nil
+			},
+		})
 		return nil
 	}
+}
+
+func doJob(ctx context.Context, db *db.DirectDealsDB, pd *piecedirectory.PieceDirectory) error {
+	id, err := uuid.Parse("a1c9f6e2-027d-490a-83b5-ee23e24147cf")
+	if err != nil {
+		return err
+	}
+
+	deal, err := db.ByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	log.Infow("doJob", "deal", deal)
+
+	entry := deal
+
+	if err := pd.TxAddDealForPiece(ctx, entry.PieceCID, model.DealInfo{
+		DealUuid:     entry.ID.String(),
+		ChainDealID:  abi.DealID(entry.AllocationID), // Convert the type to avoid migration as underlying types are same
+		MinerAddr:    entry.Provider,
+		SectorID:     entry.SectorID,
+		PieceOffset:  entry.Offset,
+		PieceLength:  entry.Length,
+		CarLength:    uint64(entry.InboundFileSize),
+		IsDirectDeal: true,
+	}); err != nil {
+		return err
+	}
+
+	//pd.
+	//pd.addIndexForPiece
+
+	return nil
 }

@@ -211,6 +211,10 @@ func AddPiece(ctx context.Context, pieceSize abi.UnpaddedPieceSize, pieceData st
 		pieceCID = paddedCid
 	}
 
+	if err := os.Truncate(unsealedFilePath, int64(pieceSize.Padded())); err != nil {
+		return "", abi.PieceInfo{}, err
+	}
+
 	return unsealedFilePath, abi.PieceInfo{
 		Size:     pieceSize.Padded(),
 		PieceCID: pieceCID,
