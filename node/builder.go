@@ -319,6 +319,7 @@ func startJob() func(lc fx.Lifecycle, db *db.DirectDealsDB, pd *piecedirectory.P
 
 func doJob(ctx context.Context, db *db.DirectDealsDB, pd *piecedirectory.PieceDirectory) error {
 	id, err := uuid.Parse("a1c9f6e2-027d-490a-83b5-ee23e24147cf")
+	//id, err := uuid.Parse("eaadb87e-0281-446d-8b71-344993299869")
 	if err != nil {
 		return err
 	}
@@ -345,8 +346,19 @@ func doJob(ctx context.Context, db *db.DirectDealsDB, pd *piecedirectory.PieceDi
 		return err
 	}
 
-	//pd.
-	//pd.addIndexForPiece
+	//{
+	//	f, err := os.Open("/cartmp/3e5f5972-5c5e-410f-8755-dd135149cd1e.1894b5dc-0195-4abe-a098-be373f50e5fe.car")
+	//	if err != nil {
+	//		return err
+	//	}
+	//	rs, err := piecedirectory.TxParseRecordsFromCar(f)
+	//	if err != nil {
+	//		return err
+	//	}
+	//
+	//	log.Infow("dddd", "rs", len(rs))
+	//
+	//}
 
 	return nil
 }

@@ -3,6 +3,7 @@ module github.com/solopine/txcartool
 go 1.22.3
 
 require (
+	github.com/solopine/txcar v0.0.1
 	github.com/filecoin-project/dagstore v0.7.0
 	github.com/filecoin-project/filecoin-ffi v1.28.0-rc2
 	github.com/filecoin-project/go-address v1.1.0
@@ -329,4 +330,4 @@ require (
 
 replace github.com/filecoin-project/filecoin-ffi => ./extern/filecoin-ffi
 
-replace github.com/filecoin-project/lotus => github.com/solopine/lotus v1.28.2-tx1
+replace github.com/filecoin-project/lotus => github.com/solopine/lotus v1.28.2-tx2
