@@ -4,33 +4,34 @@ go 1.22.3
 
 require (
 	github.com/filecoin-project/dagstore v0.7.0
-	github.com/filecoin-project/filecoin-ffi v1.28.0-rc2
+	github.com/filecoin-project/filecoin-ffi v1.28.0-rc2 // indirect
 	github.com/filecoin-project/go-address v1.1.0
-	github.com/filecoin-project/go-commp-utils v0.1.4
+	github.com/filecoin-project/go-commp-utils v0.1.4 // indirect
 	github.com/filecoin-project/go-data-segment v0.0.1
-	github.com/filecoin-project/go-fil-commcid v0.1.0
+	github.com/filecoin-project/go-fil-commcid v0.1.0 // indirect
 	github.com/filecoin-project/go-jsonrpc v0.3.2
-	github.com/filecoin-project/go-padreader v0.0.1
+	github.com/filecoin-project/go-padreader v0.0.1 // indirect
 	github.com/filecoin-project/go-state-types v0.14.0
 	github.com/filecoin-project/lotus v1.28.1
 	github.com/georgysavva/scany/v2 v2.1.3
 	github.com/google/uuid v1.6.0
 	github.com/graph-gophers/graphql-go v1.3.0
-	github.com/ipfs/go-block-format v0.2.0
+	github.com/ipfs/go-block-format v0.2.0 // indirect
 	github.com/ipfs/go-cid v0.4.1
 	github.com/ipfs/go-log/v2 v2.5.1
-	github.com/ipfs/go-unixfsnode v1.9.0
+	github.com/ipfs/go-unixfsnode v1.9.0 // indirect
 	github.com/ipld/go-car/v2 v2.13.1
-	github.com/ipld/go-codec-dagpb v1.6.0
-	github.com/ipld/go-ipld-prime v0.21.0
+	github.com/ipld/go-codec-dagpb v1.6.0 // indirect
+	github.com/ipld/go-ipld-prime v0.21.0 // indirect
 	github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438
 	github.com/jellydator/ttlcache/v2 v2.11.1
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/multiformats/go-multicodec v0.9.0
+	github.com/multiformats/go-multicodec v0.9.0 // indirect
 	github.com/multiformats/go-multihash v0.2.3
 	github.com/pressly/goose/v3 v3.14.0
 	github.com/raulk/clock v1.1.0
 	github.com/samber/lo v1.39.0
+	github.com/solopine/txcar v0.0.2
 	github.com/urfave/cli/v2 v2.27.3
 	github.com/yugabyte/gocql v0.0.0-20230831121436-1e2272bb6bb6
 	github.com/yugabyte/pgx/v4 v4.14.5
@@ -281,7 +282,6 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/solopine/txcar v0.0.1 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.5 // indirect
 	github.com/tklauser/numcpus v0.2.2 // indirect
