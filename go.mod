@@ -3,7 +3,6 @@ module github.com/solopine/txcartool
 go 1.22.3
 
 require (
-	github.com/solopine/txcar v0.0.1
 	github.com/filecoin-project/dagstore v0.7.0
 	github.com/filecoin-project/filecoin-ffi v1.28.0-rc2
 	github.com/filecoin-project/go-address v1.1.0
@@ -282,6 +281,7 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
+	github.com/solopine/txcar v0.0.1 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.5 // indirect
 	github.com/tklauser/numcpus v0.2.2 // indirect
