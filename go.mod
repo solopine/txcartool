@@ -31,7 +31,7 @@ require (
 	github.com/pressly/goose/v3 v3.14.0
 	github.com/raulk/clock v1.1.0
 	github.com/samber/lo v1.39.0
-	github.com/solopine/txcar v0.0.5
+	github.com/solopine/txcar v0.0.6
 	github.com/urfave/cli/v2 v2.27.3
 	github.com/yugabyte/gocql v0.0.0-20230831121436-1e2272bb6bb6
 	github.com/yugabyte/pgx/v4 v4.14.5
