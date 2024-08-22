@@ -298,8 +298,7 @@ func addPiece(
 	log.Infow("add piece for DC", "sid", sid, "carKey", sectorSealInfo.carKey)
 
 	carKey := sectorSealInfo.carKey
-	txCar := txcar.NewTxCar(txcar.TxCarV1, carKey)
-	carFile, txPiece, err := txCar.CreateCarFile(ctx)
+	carFile, txPiece, err := txcar.CreateCarFile(ctx, carKey, txcar.TxCarV1)
 	if err != nil {
 		return abi.PieceInfo{}, err
 	}

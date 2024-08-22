@@ -26,8 +26,7 @@ func CreateCar(c *cli.Context) error {
 		}
 	}
 
-	txCar := txcar.NewTxCar(txCarVersion, key)
-	carFile, txPiece, err := txCar.CreateCarFile(ctx)
+	carFile, txPiece, err := txcar.CreateCarFile(ctx, key, txCarVersion)
 	if err != nil {
 		return err
 	}
@@ -52,12 +51,12 @@ func BatchCreateCar(c *cli.Context) error {
 
 	txCarVersion := txcar.TxCarVersion(c.Uint("version"))
 	count := int(c.Uint("count"))
+	ctx := c.Context
 
 	for i := 0; i < count; i++ {
 		key := uuid.New()
 
-		txCar := txcar.NewTxCar(txCarVersion, key)
-		destFile, txPiece, err := txCar.CreateCarFile(c.Context)
+		destFile, txPiece, err := txcar.CreateCarFile(ctx, key, txCarVersion)
 		if err != nil {
 			return err
 		}
