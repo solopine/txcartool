@@ -303,7 +303,12 @@ func addPiece(
 		return abi.PieceInfo{}, err
 	}
 
-	unsealedFile, pi, err := txcar.GenUnsealedFile(ctx, *txPiece, carFile)
+	if txPiece.PieceCid != dbOrigUnsealedCid {
+		log.Errorw("txPiece.PieceCid != dbOrigUnsealedCid", "txPiece.PieceCid", txPiece.PieceCid.String(), "dbOrigUnsealedCid", dbOrigUnsealedCid.String())
+		return abi.PieceInfo{}, err
+	}
+
+	unsealedFile, err := txPiece.CreateTxUnsealedFileWithCar(carFile)
 	if err != nil {
 		return abi.PieceInfo{}, err
 	}
@@ -318,12 +323,11 @@ func addPiece(
 		return abi.PieceInfo{}, err
 	}
 
-	log.Infow("AddPiece", "pi", pi)
-
-	if pi.PieceCID.String() != dbOrigUnsealedCid.String() {
-		log.Errorw("pi.PieceCID != dbOrigUnsealedCid", "pi.PieceCID", pi.PieceCID.String(), "dbOrigUnsealedCid", dbOrigUnsealedCid.String())
-		return abi.PieceInfo{}, err
+	pi := abi.PieceInfo{
+		Size:     txPiece.PieceSize,
+		PieceCID: txPiece.PieceCid,
 	}
+	log.Infow("AddPiece", "pi", pi)
 
 	return pi, nil
 }

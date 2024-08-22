@@ -36,7 +36,7 @@ func CreateCar(c *cli.Context) error {
 
 	if unsealed {
 		// create unsealed file
-		unsealedFile, _, err := txcar.GenUnsealedFile(ctx, *txPiece, carFile)
+		unsealedFile, err := txPiece.CreateTxUnsealedFileWithCar(carFile)
 		if err != nil {
 			return err
 		}
