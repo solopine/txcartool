@@ -18,7 +18,8 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/mitchellh/go-homedir"
 	"github.com/solopine/txcar/txcar"
-	"github.com/solopine/txcartool/lib/harmonydb"
+	"github.com/solopine/txcartool/lib/curio/harmony/harmonydb"
+
 	"github.com/solopine/txcartool/lib/util"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/xerrors"

@@ -10,7 +10,8 @@ import (
 	"github.com/filecoin-project/lotus/storage/sealer/ffiwrapper/basicfs"
 	"github.com/filecoin-project/lotus/storage/sealer/storiface"
 	"github.com/ipfs/go-cid"
-	"github.com/solopine/txcartool/lib/harmonydb"
+	"github.com/solopine/txcartool/lib/curio/harmony/harmonydb"
+
 	"github.com/solopine/txcartool/lib/util"
 	"github.com/urfave/cli/v2"
 )

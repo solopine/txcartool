@@ -6,17 +6,20 @@ import (
 	"github.com/filecoin-project/lotus/node/config"
 	"math/rand"
 	"net"
+	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"testing"
 	"time"
 
-	lhdb "github.com/filecoin-project/lotus/lib/harmony/harmonydb"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/yugabyte/pgx/v5"
 	"github.com/yugabyte/pgx/v5/pgconn"
 	"github.com/yugabyte/pgx/v5/pgxpool"
+	"golang.org/x/xerrors"
 )
 
 type ITestID string
@@ -52,6 +55,32 @@ func NewFromConfig(cfg config.HarmonyDB) (*DB, error) {
 	)
 }
 
+func envElse(env, els string) string {
+	if v := os.Getenv(env); v != "" {
+		return v
+	}
+	return els
+}
+
+func NewFromConfigWithITestID(t *testing.T, id ITestID) (*DB, error) {
+	fmt.Printf("CURIO_HARMONYDB_HOSTS: %s\n", os.Getenv("CURIO_HARMONYDB_HOSTS"))
+	db, err := New(
+		[]string{envElse("CURIO_HARMONYDB_HOSTS", "127.0.0.1")},
+		"yugabyte",
+		"yugabyte",
+		"yugabyte",
+		"5433",
+		id,
+	)
+	if err != nil {
+		return nil, err
+	}
+	t.Cleanup(func() {
+		db.ITestDeleteAll()
+	})
+	return db, nil
+}
+
 // New is to be called once per binary to establish the pool.
 // log() is for errors. It returns an upgraded database's connection.
 // This entry point serves both production and integration tests, so it's more DI.
@@ -72,6 +101,9 @@ func New(hosts []string, username, password, database, port string, itestID ITes
 		schema = "itest_" + itest
 	}
 
+	if err := ensureSchemaExists(connString, schema); err != nil {
+		return nil, err
+	}
 	cfg, err := pgxpool.ParseConfig(connString + "search_path=" + schema)
 	if err != nil {
 		return nil, err
@@ -84,7 +116,7 @@ func New(hosts []string, username, password, database, port string, itestID ITes
 
 	cfg.ConnConfig.OnNotice = func(conn *pgconn.PgConn, n *pgconn.Notice) {
 		logger.Debug("database notice: " + n.Message + ": " + n.Detail)
-		lhdb.DBMeasures.Errors.M(1)
+		DBMeasures.Errors.M(1)
 	}
 
 	db := DB{cfg: cfg, schema: schema, hostnames: hosts} // pgx populated in AddStatsAndConnect
@@ -107,12 +139,12 @@ func (t tracer) TraceQueryStart(ctx context.Context, conn *pgx.Conn, data pgx.Tr
 	return context.WithValue(context.WithValue(ctx, SQL_START, time.Now()), SQL_STRING, data.SQL)
 }
 func (t tracer) TraceQueryEnd(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryEndData) {
-	lhdb.DBMeasures.Hits.M(1)
+	DBMeasures.Hits.M(1)
 	ms := time.Since(ctx.Value(SQL_START).(time.Time)).Milliseconds()
-	lhdb.DBMeasures.TotalWait.M(ms)
-	lhdb.DBMeasures.Waits.Observe(float64(ms))
+	DBMeasures.TotalWait.M(ms)
+	DBMeasures.Waits.Observe(float64(ms))
 	if data.Err != nil {
-		lhdb.DBMeasures.Errors.M(1)
+		DBMeasures.Errors.M(1)
 	}
 	logger.Debugw("SQL run",
 		"query", ctx.Value(SQL_STRING).(string),
@@ -146,8 +178,8 @@ func (db *DB) addStatsAndConnect() error {
 	}
 	db.cfg.AfterConnect = func(ctx context.Context, c *pgx.Conn) error {
 		s := db.pgx.Stat()
-		lhdb.DBMeasures.OpenConnections.M(int64(s.TotalConns()))
-		lhdb.DBMeasures.WhichHost.Observe(hostnameToIndex[c.Config().Host])
+		DBMeasures.OpenConnections.M(int64(s.TotalConns()))
+		DBMeasures.WhichHost.Observe(hostnameToIndex[c.Config().Host])
 
 		//FUTURE place for any connection seasoning
 		return nil
@@ -163,4 +195,79 @@ func (db *DB) addStatsAndConnect() error {
 		return err
 	}
 	return nil
+}
+
+// ITestDeleteAll will delete everything created for "this" integration test.
+// This must be called at the end of each integration test.
+func (db *DB) ITestDeleteAll() {
+	if !strings.HasPrefix(db.schema, "itest_") {
+		fmt.Println("Warning: this should never be called on anything but an itest schema.")
+		return
+	}
+	defer db.pgx.Close()
+	_, err := db.pgx.Exec(context.Background(), "DROP SCHEMA "+db.schema+" CASCADE")
+	if err != nil {
+		fmt.Println("warning: unclean itest shutdown: cannot delete schema: " + err.Error())
+		return
+	}
+}
+
+var schemaREString = "^[A-Za-z0-9_]+$"
+var schemaRE = regexp.MustCompile(schemaREString)
+
+func ensureSchemaExists(connString, schema string) error {
+	// FUTURE allow using fallback DBs for start-up.
+	ctx, cncl := context.WithDeadline(context.Background(), time.Now().Add(3*time.Second))
+	p, err := pgx.Connect(ctx, connString)
+	defer cncl()
+	if err != nil {
+		return xerrors.Errorf("unable to connect to db: %s, err: %v", connString, err)
+	}
+	defer func() { _ = p.Close(context.Background()) }()
+
+	if len(schema) < 5 || !schemaRE.MatchString(schema) {
+		return xerrors.New("schema must be of the form " + schemaREString + "\n Got: " + schema)
+	}
+	_, err = p.Exec(context.Background(), "CREATE SCHEMA IF NOT EXISTS "+schema)
+	if err != nil {
+		return xerrors.Errorf("cannot create schema: %w", err)
+	}
+	return nil
+}
+
+func parseSQLStatements(sqlContent string) []string {
+	var statements []string
+	var currentStatement strings.Builder
+
+	lines := strings.Split(sqlContent, "\n")
+	var inFunction bool
+
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		if trimmedLine == "" || strings.HasPrefix(trimmedLine, "--") {
+			// Skip empty lines and comments.
+			continue
+		}
+
+		// Detect function blocks starting or ending.
+		if strings.Contains(trimmedLine, "$$") {
+			inFunction = !inFunction
+		}
+
+		// Add the line to the current statement.
+		currentStatement.WriteString(line + "\n")
+
+		// If we're not in a function and the line ends with a semicolon, or we just closed a function block.
+		if (!inFunction && strings.HasSuffix(trimmedLine, ";")) || (strings.Contains(trimmedLine, "$$") && !inFunction) {
+			statements = append(statements, currentStatement.String())
+			currentStatement.Reset()
+		}
+	}
+
+	// Add any remaining statement not followed by a semicolon (should not happen in well-formed SQL but just in case).
+	if currentStatement.Len() > 0 {
+		statements = append(statements, currentStatement.String())
+	}
+
+	return statements
 }
