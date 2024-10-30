@@ -364,11 +364,16 @@ func (ps *PieceDirectory) addIndexForPiece(ctx context.Context, pieceCid cid.Cid
 		return nil
 	}
 
-	tsize := uint64(0)
 	for _, rec := range recs {
-		tsize += rec.Size
+		if rec.Cid.Type() == 0x55 {
+			//log.Infow("raw", "cid", rec.Cid.String())
+		} else if rec.Cid.Type() == 0x70 {
+			fmt.Printf("%s,%s,%d,%d\n", rec.Cid.String(), rec.Cid.Hash().String(), rec.OffsetSize.Offset, rec.OffsetSize.Size)
+			//log.Infow("dag-pb", "cid", rec.Cid.String())
+		} else {
+			log.Infow("---------other", "cid", rec.Cid.String())
+		}
 	}
-	log.Infow("----test", "tsize", tsize)
 
 	return nil
 
@@ -403,6 +408,28 @@ func (ps *PieceDirectory) addIndexForPiece(ctx context.Context, pieceCid cid.Cid
 	//}
 	//
 	//return eg.Wait()
+}
+
+func (ps *PieceDirectory) ParseRecordsForPiece(ctx context.Context, pieceCid cid.Cid, dealInfo model.DealInfo) ([]model.Record, error) {
+	// Get a reader over the piece data
+	log.Debugw("ParseRecordsForPiece", "pieceCid", pieceCid)
+	reader, err := ps.pieceReader.GetReader(ctx, dealInfo.MinerAddr, dealInfo.SectorID, dealInfo.PieceOffset, dealInfo.PieceLength)
+	if err != nil {
+		return nil, fmt.Errorf("getting reader over piece %s: %w", pieceCid, err)
+	}
+
+	defer reader.Close() //nolint:errcheck
+
+	// Iterate over all the blocks in the piece to extract the index records
+	if _, err := reader.Seek(0, io.SeekStart); err != nil {
+		return nil, fmt.Errorf("seek to start for piece %s: %w", pieceCid, err)
+	}
+	recs, err := parseRecordsFromCar(reader)
+	if err != nil {
+		return nil, fmt.Errorf("parse car for piece %s: %w", pieceCid, err)
+	}
+
+	return recs, nil
 }
 
 func TxParseRecordsFromCar(reader io.Reader) ([]model.Record, error) {

@@ -1,8 +1,10 @@
 package node
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/filecoin-project/go-state-types/abi"
@@ -15,8 +17,11 @@ import (
 	lotus_helpers "github.com/filecoin-project/lotus/node/modules/helpers"
 	lotus_repo "github.com/filecoin-project/lotus/node/repo"
 	"github.com/google/uuid"
+	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/ipfs/go-metrics-interface"
+	"github.com/multiformats/go-multihash"
+	"github.com/solopine/txcar/txcar"
 	"github.com/solopine/txcartool/lib/boost/build"
 	"github.com/solopine/txcartool/lib/boost/cmd/lib"
 	"github.com/solopine/txcartool/lib/boost/db"
@@ -26,8 +31,15 @@ import (
 	"github.com/solopine/txcartool/lib/boost/piecedirectory"
 	bdclient "github.com/solopine/txcartool/lib/boostd-data/client"
 	"github.com/solopine/txcartool/lib/boostd-data/model"
+	"github.com/yugabyte/gocql"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
+	"golang.org/x/sync/errgroup"
+	"golang.org/x/xerrors"
+	"os"
+	"path/filepath"
+	"syscall"
+	"time"
 )
 
 //nolint:deadcode,varcheck
@@ -306,7 +318,7 @@ func startJob() func(lc fx.Lifecycle, db *db.DirectDealsDB, pd *piecedirectory.P
 
 		lc.Append(fx.Hook{
 			OnStart: func(ctx context.Context) error {
-				return doJob(pdctx, db, pd)
+				return doJob3(pdctx, db, pd)
 			},
 			OnStop: func(ctx context.Context) error {
 				cancel()
@@ -318,6 +330,13 @@ func startJob() func(lc fx.Lifecycle, db *db.DirectDealsDB, pd *piecedirectory.P
 }
 
 func doJob(ctx context.Context, db *db.DirectDealsDB, pd *piecedirectory.PieceDirectory) error {
+
+	//TX_CAR_KEY/1/3e5f5972-5c5e-410f-8755-dd135149cd1e/baga6ea4seaqmhl6rfrlrl6lpzifv6whwqerv3czmu457w55ipta2dgtvcrqm6dy/34359738368/17185740416
+	carKey, err := uuid.Parse("3e5f5972-5c5e-410f-8755-dd135149cd1e")
+	if err != nil {
+		return err
+	}
+
 	id, err := uuid.Parse("a1c9f6e2-027d-490a-83b5-ee23e24147cf")
 	//id, err := uuid.Parse("eaadb87e-0281-446d-8b71-344993299869")
 	if err != nil {
@@ -333,7 +352,7 @@ func doJob(ctx context.Context, db *db.DirectDealsDB, pd *piecedirectory.PieceDi
 
 	entry := deal
 
-	if err := pd.TxAddDealForPiece(ctx, entry.PieceCID, model.DealInfo{
+	recs, err := pd.ParseRecordsForPiece(ctx, entry.PieceCID, model.DealInfo{
 		DealUuid:     entry.ID.String(),
 		ChainDealID:  abi.DealID(entry.AllocationID), // Convert the type to avoid migration as underlying types are same
 		MinerAddr:    entry.Provider,
@@ -342,9 +361,74 @@ func doJob(ctx context.Context, db *db.DirectDealsDB, pd *piecedirectory.PieceDi
 		PieceLength:  entry.Length,
 		CarLength:    uint64(entry.InboundFileSize),
 		IsDirectDeal: true,
-	}); err != nil {
+	})
+	if err != nil {
 		return err
 	}
+
+	for i, rec := range recs {
+
+		log.Infow("process", "i", i)
+		if rec.Cid.Type() == 0x55 {
+			//if i == 0 || i == 1 || i == recssize-5 {
+			//	log.Infow("skip", "i", i, "cid", rec.Cid.String())
+			//	continue
+			//}
+
+			block, err := txcar.TxBlockGet(ctx, carKey, rec.OffsetSize.Offset, rec.OffsetSize.Size, txcar.TxCarV1)
+			if err != nil {
+				return err
+			}
+
+			chkc, err := rec.Cid.Prefix().Sum(block)
+			if err != nil {
+				return err
+			}
+
+			log.Infow("hash.sum", "i", i, "chkc", chkc.String(), "rec.Cid", rec.Cid.String())
+
+			if !chkc.Equals(rec.Cid) {
+
+				return err
+			}
+		}
+	}
+
+	//{
+	//	cluster := gocql.NewCluster("10.0.3.47")
+	//	cluster.Timeout = 60 * time.Second
+	//	cluster.Keyspace = "idx"
+	//
+	//	session, err := cluster.CreateSession()
+	//	if err != nil {
+	//		return err
+	//	}
+	//
+	//	recssize := len(recs)
+	//	for i, rec := range recs {
+	//
+	//		log.Infow("process", "i", i)
+	//		if rec.Cid.Type() == 0x55 {
+	//			if i == 0 || i == 1 || i == recssize-5 {
+	//				log.Infow("skip", "i", i, "cid", rec.Cid.String())
+	//				continue
+	//			}
+	//			qry := `INSERT INTO txpieceblockoffsetsizev1(payloadmultihash, blockoffset, blocksize) VALUES (?, ?, ?)`
+	//			err := session.Query(qry, rec.Cid.Hash(), rec.OffsetSize.Offset, rec.OffsetSize.Size).WithContext(ctx).Exec()
+	//			if err != nil {
+	//				return err
+	//			}
+	//
+	//		} else if rec.Cid.Type() == 0x70 {
+	//			fmt.Printf("%s,%s,%d,%d\n", rec.Cid.String(), rec.Cid.Hash().String(), rec.OffsetSize.Offset, rec.OffsetSize.Size)
+	//		} else {
+	//			log.Infow("---------other", "cid", rec.Cid.String())
+	//		}
+	//	}
+	//
+	//}
+	log.Infow("dddd", "len", len(recs))
+	return nil
 
 	//{
 	//	f, err := os.Open("/cartmp/3e5f5972-5c5e-410f-8755-dd135149cd1e.1894b5dc-0195-4abe-a098-be373f50e5fe.car")
@@ -360,5 +444,298 @@ func doJob(ctx context.Context, db *db.DirectDealsDB, pd *piecedirectory.PieceDi
 	//
 	//}
 
+	return nil
+}
+
+func doJob2(ctx context.Context, db *db.DirectDealsDB, pd *piecedirectory.PieceDirectory) error {
+	path := "/cu1store2/cache/s-t03143698-1664"
+	sz, err := FileSize(path)
+	if err != nil {
+		return err
+	}
+	log.Infow("doJob2", "sz", sz)
+	return nil
+}
+
+func doJob3(ctx context.Context, db *db.DirectDealsDB, pd *piecedirectory.PieceDirectory) error {
+
+	//465
+
+	cluster := gocql.NewCluster("10.0.3.47")
+	cluster.Timeout = 60 * time.Second
+	cluster.Keyspace = "idx"
+
+	session, err := cluster.CreateSession()
+	if err != nil {
+		return err
+	}
+
+	payloadHashs := make([][]byte, 0, 70000)
+	var payloadHash []byte
+	payloadHashQry := `select payloadmultihash from txpieceblockoffsetsizev1`
+	payloadHashQryIter := session.Query(payloadHashQry).WithContext(ctx).Iter()
+	for payloadHashQryIter.Scan(&payloadHash) {
+		if payloadHash == nil {
+			log.Infow("payloadHash == nil")
+			continue
+		}
+		payloadHashs = append(payloadHashs, bytes.Clone(payloadHash))
+		//payloadHashStr := hex.EncodeToString(payloadHash)
+		//log.Infow("dojob3", "pieceHexStr", pieceHexStr, "payloadHashStr", payloadHashStr)
+	}
+	log.Infow("dojob3", "payloadHashs", len(payloadHashs))
+
+	{
+		pHex, err := hex.DecodeString("0181e2039220200d155e760dd8e7551c0e61b99db6226e6b6c94a90e71e1dc1e845757cd51e836")
+		if err != nil {
+			return err
+		}
+		hs := make([][]byte, 0, 2000)
+		qry := `select payloadmultihash from payloadtopieces where piececid=?`
+		iter1 := session.Query(qry, pHex).WithContext(ctx).Iter()
+		var h []byte
+		for iter1.Scan(&h) {
+			hs = append(hs, bytes.Clone(h))
+		}
+		log.Infow("dojob3", "hs", len(hs))
+
+		for _, item := range hs {
+			for _, ph := range payloadHashs {
+				a1 := trimMultihash(ph)
+				if bytes.Equal(a1, item) {
+					log.Infow("dojob3.e")
+				}
+			}
+
+		}
+	}
+
+	txPieces := make([]cid.Cid, 0, 2000)
+	qry := `select piececid from txcarpieces`
+	iter := session.Query(qry).WithContext(ctx).Iter()
+
+	var pieceStr string
+	for iter.Scan(&pieceStr) {
+		pieceCid, err := cid.Decode(pieceStr)
+		if err != nil {
+			return nil
+		}
+		txPieces = append(txPieces, pieceCid)
+	}
+
+	const InsertConcurrency = 4
+	const InsertBatchSize = 10_000
+	threadBatch := len(payloadHashs) / InsertConcurrency
+	if threadBatch == 0 {
+		threadBatch = len(payloadHashs)
+	}
+
+	deletePieceOffsetsQry1 := `delete from payloadtopieces where payloadmultihash=? and piececid=?`
+	for pi, pieceCid := range txPieces {
+
+		pieceHexStr := hex.EncodeToString(pieceCid.Bytes())
+		log.Infow("dojob3", "pieceHexStr", pieceHexStr)
+		pieceCidBytes := pieceCid.Bytes()
+
+		var eg errgroup.Group
+		for i := 0; i < len(payloadHashs); i += threadBatch {
+			i := i
+			j := i + threadBatch
+			if j >= len(payloadHashs) {
+				j = len(payloadHashs)
+			}
+
+			// Process batch recs[i:j]
+
+			eg.Go(func() error {
+				var batch *gocql.Batch
+				recsb := payloadHashs[i:j]
+				for allIdx, rec := range recsb {
+					if batch == nil {
+						batch = session.NewBatch(gocql.UnloggedBatch).WithContext(ctx)
+						batch.Entries = make([]gocql.BatchEntry, 0, InsertBatchSize)
+					}
+
+					batch.Entries = append(batch.Entries, gocql.BatchEntry{
+						Stmt:       deletePieceOffsetsQry1,
+						Args:       []interface{}{trimMultihash(rec), pieceCidBytes},
+						Idempotent: true,
+					})
+
+					if allIdx == len(recsb)-1 || len(batch.Entries) == InsertBatchSize {
+						err := func() error {
+							defer func(start time.Time) {
+								log.Infow("addMultihashesToPieces executeBatch", "i", i, "j", j, "took", time.Since(start), "entries", len(batch.Entries))
+							}(time.Now())
+							err := session.ExecuteBatch(batch)
+							if err != nil {
+								return fmt.Errorf("inserting into PayloadToPieces: %w", err)
+							}
+							return nil
+						}()
+						if err != nil {
+							return err
+						}
+						batch = nil
+					}
+				}
+				return nil
+			})
+		}
+
+		err = eg.Wait()
+		if err != nil {
+			return err
+		}
+		log.Infow("c1", "pi", pi)
+		//for hi, ph := range payloadHashs {
+		//	log.Infow("process delete - 1", "pi", pi, "hi", hi)
+		//
+		//	delQry1 := `delete from payloadtopieces where payloadmultihash=? and piececid=?`
+		//	err = session.Query(delQry1, trimMultihash(ph), pieceCid.Bytes()).WithContext(ctx).Exec()
+		//	if err != nil {
+		//		return err
+		//	}
+		//
+		//	delQry2 := `delete from PieceBlockOffsetSize where PayloadMultihash=? and PieceCid=?`
+		//	err = session.Query(delQry2, ph, pieceCid.Bytes()).WithContext(ctx).Exec()
+		//	if err != nil {
+		//		return err
+		//	}
+		//}
+	}
+
+	deletePieceOffsetsQry2 := `delete from PieceBlockOffsetSize where PayloadMultihash=? and PieceCid=?`
+	for pi, pieceCid := range txPieces {
+
+		pieceHexStr := hex.EncodeToString(pieceCid.Bytes())
+		log.Infow("dojob3", "pieceHexStr", pieceHexStr)
+		pieceCidBytes := pieceCid.Bytes()
+
+		var eg errgroup.Group
+		for i := 0; i < len(payloadHashs); i += threadBatch {
+			i := i
+			j := i + threadBatch
+			if j >= len(payloadHashs) {
+				j = len(payloadHashs)
+			}
+
+			// Process batch recs[i:j]
+
+			eg.Go(func() error {
+				var batch *gocql.Batch
+				recsb := payloadHashs[i:j]
+				for allIdx, rec := range recsb {
+					if batch == nil {
+						batch = session.NewBatch(gocql.UnloggedBatch).WithContext(ctx)
+						batch.Entries = make([]gocql.BatchEntry, 0, InsertBatchSize)
+					}
+
+					batch.Entries = append(batch.Entries, gocql.BatchEntry{
+						Stmt:       deletePieceOffsetsQry2,
+						Args:       []interface{}{rec, pieceCidBytes},
+						Idempotent: true,
+					})
+
+					if allIdx == len(recsb)-1 || len(batch.Entries) == InsertBatchSize {
+						err := func() error {
+							defer func(start time.Time) {
+								log.Debugw("addMultihashesToPieces executeBatch", "took", time.Since(start), "entries", len(batch.Entries))
+							}(time.Now())
+							err := session.ExecuteBatch(batch)
+							if err != nil {
+								return fmt.Errorf("inserting into PayloadToPieces: %w", err)
+							}
+							return nil
+						}()
+						if err != nil {
+							return err
+						}
+						batch = nil
+
+						// emit progress only from batch 0
+						if i == 0 {
+							numberOfGoroutines := len(payloadHashs)/threadBatch + 1
+							log.Infow("progress", "p", float64(numberOfGoroutines)*float64(allIdx+1)/float64(len(payloadHashs)))
+						}
+					}
+				}
+				return nil
+			})
+		}
+
+		err = eg.Wait()
+		log.Infow("c2", "pi", pi)
+	}
+
+	return nil
+}
+
+// Probability of a collision in two 24 byte hashes (birthday problem):
+// 2^(24*8/2) = 8 x 10^28
+const multihashLimitBytes = 24
+
+// trimMultihash trims the multihash to the last multihashLimitBytes bytes
+func trimMultihash(mh multihash.Multihash) []byte {
+	var idx int
+	if len(mh) > multihashLimitBytes {
+		idx = len(mh) - multihashLimitBytes
+	}
+	return mh[idx:]
+}
+
+type SizeInfo struct {
+	OnDisk int64
+}
+
+func FileSize(path string) (SizeInfo, error) {
+	start := time.Now()
+
+	var size int64
+	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			stat, ok := info.Sys().(*syscall.Stat_t)
+			if !ok {
+				return xerrors.New("FileInfo.Sys of wrong type")
+			}
+
+			// NOTE: stat.Blocks is in 512B blocks, NOT in stat.Blksize		return SizeInfo{size}, nil
+			//  See https://www.gnu.org/software/libc/manual/html_node/Attribute-Meanings.html
+			size += int64(stat.Blocks) * 512 // nolint NOTE: int64 cast is needed on osx
+		}
+		return err
+	})
+
+	log.Infow("file size check", "took", time.Now().Sub(start), "path", path)
+	if time.Now().Sub(start) >= 3*time.Second {
+		log.Warnw("very slow file size check", "took", time.Now().Sub(start), "path", path)
+	}
+
+	if err != nil {
+		if os.IsNotExist(err) {
+			return SizeInfo{}, os.ErrNotExist
+		}
+		return SizeInfo{}, xerrors.Errorf("filepath.Walk err: %w", err)
+	}
+
+	return SizeInfo{size}, nil
+}
+
+func doJob4(ctx context.Context, db *db.DirectDealsDB, pd *piecedirectory.PieceDirectory) error {
+
+	path := "/fc/cuseal"
+	var stat syscall.Statfs_t
+	if err := syscall.Statfs(path, &stat); err != nil {
+		return err
+	}
+
+	capacity := int64(stat.Blocks) * int64(stat.Bsize)
+	available := int64(stat.Bavail) * int64(stat.Bsize)
+	fSAvailable := int64(stat.Bavail) * int64(stat.Bsize)
+
+	log.Infow("doJob4", "capacity", capacity, "available", available, "fSAvailable", fSAvailable)
 	return nil
 }

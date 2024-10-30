@@ -4,8 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/hex"
 	addr "github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/go-state-types/crypto"
+	"github.com/filecoin-project/lotus/api/v1api"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
 	lcli "github.com/filecoin-project/lotus/cli"
 	"github.com/filecoin-project/lotus/storage/sealer/ffiwrapper"
@@ -71,6 +74,9 @@ func Reseal(cctx *cli.Context) error {
 			}
 		}
 	}
+
+	version := cctx.Int("version")
+	txCarVersion := txcar.TxCarVersion(version)
 
 	ctx := cctx.Context
 	//db
@@ -145,7 +151,7 @@ func Reseal(cctx *cli.Context) error {
 				return
 			}
 			if len(sectorMetas) != 1 {
-				log.Errorw("got from db", "sectorMetas", len(sectorMetas))
+				log.Warnw("got from db", "sectorMetas", len(sectorMetas))
 
 				err = db.Select(ctx, &sectorMetas, `select sp_id, sector_number as sector_num,ticket_epoch, ticket_value, tree_d_cid as orig_unsealed_cid, tree_r_cid as orig_sealed_cid, precommit_msg_cid as msg_cid_precommit from sectors_sdr_pipeline where sector_number=$1`, uint64(sid))
 				if err != nil {
@@ -160,6 +166,16 @@ func Reseal(cctx *cli.Context) error {
 			sectorMeta := sectorMetas[0]
 			log.Infow("got from db", "sectorMeta", sectorMeta)
 
+			ticketValue, _, err := GetTicket(ctx, nodeApi, maddr, abi.ChainEpoch(sectorMeta.TicketEpoch))
+			if err != nil {
+				log.Errorf("GetTicket:%+v", err)
+				return
+			}
+			if !bytes.Equal(sectorMeta.TicketValue, ticketValue) {
+				log.Errorf("TicketValue.not equeal. db:%+v, chain:%+v", hex.EncodeToString(sectorMeta.TicketValue), hex.EncodeToString(ticketValue))
+				return
+			}
+
 			//AP
 			apResult, err := func() (APResult, error) {
 				defer func() {
@@ -170,7 +186,7 @@ func Reseal(cctx *cli.Context) error {
 
 				log.Warnf("start to process AP sector: %d. apThrottle: %d", sid, len(apThrottle))
 
-				pi, err := addPiece(sectorSealInfo, actor, spt, sbfs, &sectorMeta)
+				pi, err := addPiece(sectorSealInfo, actor, spt, sbfs, &sectorMeta, txCarVersion)
 				if err != nil {
 					log.Errorf("AP seal error for %d, err: %s", sid, err)
 					return APResult{}, err
@@ -277,6 +293,7 @@ func addPiece(
 	spt abi.RegisteredSealProof,
 	sbfs *basicfs.Provider,
 	sectorMeta *SectorMeta,
+	txCarVersion txcar.TxCarVersion,
 ) (abi.PieceInfo, error) {
 	ctx := context.Background()
 	dbOrigUnsealedCid, err := cid.Decode(sectorMeta.OrigUnsealedCid)
@@ -298,7 +315,7 @@ func addPiece(
 	log.Infow("add piece for DC", "sid", sid, "carKey", sectorSealInfo.carKey)
 
 	carKey := sectorSealInfo.carKey
-	carFile, txPiece, err := txcar.CreateCarFile(ctx, carKey, txcar.TxCarV1)
+	carFile, txPiece, err := txcar.CreateCarFile(ctx, carKey, txCarVersion)
 	if err != nil {
 		return abi.PieceInfo{}, err
 	}
@@ -318,7 +335,7 @@ func addPiece(
 	if err != nil {
 		return abi.PieceInfo{}, err
 	}
-	err = os.Rename(unsealedFile, stagedPath.Unsealed)
+	err = os.Symlink(unsealedFile, stagedPath.Unsealed)
 	if err != nil {
 		return abi.PieceInfo{}, err
 	}
@@ -387,7 +404,7 @@ func precommit2(sid abi.SectorNumber, actor abi.ActorID,
 		return err
 	}
 	if cids.Sealed.String() != dbOrigSealedCid.String() {
-		log.Errorw("SealPreCommit2 result is invalid, different from that on the chain", "result-cod", cids.Sealed.String(), "chain-cid", dbOrigSealedCid.String())
+		log.Errorw("SealPreCommit2 result is invalid, different from that on the chain", "result-cid", cids.Sealed.String(), "chain-cid", dbOrigSealedCid.String())
 		return xerrors.Errorf("cids.Sealed.String() != commR.String()")
 	}
 	log.Infow("SealPreCommit2", "cids", cids)
@@ -560,6 +577,25 @@ func ReadSectorSealInfos(path string) ([]SectorSealInfo, error) {
 		sectorSealInfos = append(sectorSealInfos, sectorSealInfo)
 	}
 	return sectorSealInfos, scanner.Err()
+}
+
+func GetTicket(ctx context.Context, api v1api.FullNode, maddr addr.Address, ticketEpoch abi.ChainEpoch) (abi.SealRandomness, abi.ChainEpoch, error) {
+	ts, err := api.ChainHead(ctx)
+	if err != nil {
+		return nil, 0, xerrors.Errorf("getting chain head: %w", err)
+	}
+
+	buf := new(bytes.Buffer)
+	if err := maddr.MarshalCBOR(buf); err != nil {
+		return nil, 0, xerrors.Errorf("marshaling miner address: %w", err)
+	}
+
+	rand, err := api.StateGetRandomnessFromTickets(ctx, crypto.DomainSeparationTag_SealRandomness, ticketEpoch, buf.Bytes(), ts.Key())
+	if err != nil {
+		return nil, 0, xerrors.Errorf("getting randomness from tickets: %w", err)
+	}
+
+	return abi.SealRandomness(rand), ticketEpoch, nil
 }
 
 type APResult struct {

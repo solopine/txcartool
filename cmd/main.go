@@ -66,10 +66,10 @@ func main1() int {
 				Action:  BatchCreateCar,
 				Flags: []cli.Flag{
 					&cli.UintFlag{
-						Name:     "version",
-						Aliases:  []string{"v"},
-						Usage:    "The version of txcar file",
-						Required: true,
+						Name:    "version",
+						Aliases: []string{"v"},
+						Usage:   "The version of txcar file",
+						Value:   1,
 					},
 					&cli.UintFlag{
 						Name:     "count",
@@ -132,6 +132,10 @@ func main1() int {
 					}, &cli.StringFlag{
 						Name:  "dbpwd",
 						Usage: "dbpwd",
+					}, &cli.IntFlag{
+						Name:  "version",
+						Usage: "tx car version",
+						Value: 1,
 					},
 				},
 			},
