@@ -31,7 +31,7 @@ require (
 	github.com/pressly/goose/v3 v3.14.0
 	github.com/raulk/clock v1.1.0
 	github.com/samber/lo v1.39.0
-	github.com/solopine/txcar v0.0.23
+	github.com/solopine/txcar v0.0.24
 	github.com/urfave/cli/v2 v2.27.3
 	github.com/yugabyte/gocql v0.0.0-20230831121436-1e2272bb6bb6
 	github.com/yugabyte/pgx/v4 v4.14.5
@@ -45,6 +45,7 @@ require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2
 	github.com/BurntSushi/toml v1.3.2
 	github.com/filecoin-project/go-cbor-util v0.0.1
+	github.com/filecoin-project/specs-actors/v5 v5.0.6
 	github.com/gbrlsnchs/jwt/v3 v3.0.1
 	github.com/gorilla/mux v1.8.1
 	github.com/hashicorp/go-multierror v1.1.1
@@ -138,7 +139,6 @@ require (
 	github.com/filecoin-project/specs-actors/v2 v2.3.6 // indirect
 	github.com/filecoin-project/specs-actors/v3 v3.1.2 // indirect
 	github.com/filecoin-project/specs-actors/v4 v4.0.2 // indirect
-	github.com/filecoin-project/specs-actors/v5 v5.0.6 // indirect
 	github.com/filecoin-project/specs-actors/v6 v6.0.2 // indirect
 	github.com/filecoin-project/specs-actors/v7 v7.0.1 // indirect
 	github.com/filecoin-project/specs-actors/v8 v8.0.1 // indirect
